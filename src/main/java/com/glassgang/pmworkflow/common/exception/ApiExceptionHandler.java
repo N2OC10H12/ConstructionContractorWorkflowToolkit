@@ -20,4 +20,14 @@ public class ApiExceptionHandler {
                         ex.getMessage()
                 ));
     }
+
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ApiErrorResponse> handleBadRequest(BadRequestException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ApiErrorResponse(
+                        LocalDateTime.now(),
+                        400,
+                        ex.getMessage()
+                ));
+    }
 }
