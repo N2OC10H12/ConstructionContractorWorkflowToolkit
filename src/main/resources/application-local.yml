@@ -1,0 +1,37 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://192.168.0.58:5432/pm_workflow
+    username: pm_workflow_app
+    password: CHANGE_ME_STRONG_PASSWORD
+    driver-class-name: org.postgresql.Driver
+
+    hikari:
+      data-source-properties:
+        gssEncMode: disable
+        sslmode: disable
+
+  main:
+    banner-mode: "off"
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+
+  servlet:
+    multipart:
+      max-file-size: 25MB
+      max-request-size: 25MB
+
+app:
+  jwt:
+    secret: CHANGE_THIS_TO_LONG_RANDOM_SECRET_CHANGE_THIS_TO_LONG_RANDOM_SECRET
+    expiration-minutes: 120
+
+  file-storage:
+    root: C:/apps/pm-workflow/storage

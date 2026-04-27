@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: PMWorkflowTool
+
+  profiles:
+    active: local
+
+server:
+  port: 8080
+
+logging:
+  level:
+    org.springframework.boot.context.config: DEBUG
