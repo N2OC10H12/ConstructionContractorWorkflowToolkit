@@ -18,6 +18,10 @@ public class ProjectStatusService {
     }
 
     public ComputedStatus computeStepStatus(ProjectStep step) {
+        if (step.getSubsteps() == null || step.getSubsteps().isEmpty()) {
+            return ComputedStatus.NEUTRAL;
+        }
+
         boolean allDone = step.getSubsteps().stream()
                 .allMatch(s -> Boolean.TRUE.equals(s.getIsDone()));
 
@@ -34,10 +38,16 @@ public class ProjectStatusService {
     }
 
     public ComputedStatus computeProjectStatus(Project project) {
+        if (project.getSteps() == null || project.getSteps().isEmpty()) {
+            return ComputedStatus.NEUTRAL;
+        }
+
         boolean allDone = project.getSteps().stream()
                 .allMatch(step ->
-                        step.getSubsteps().stream()
-                                .allMatch(s -> Boolean.TRUE.equals(s.getIsDone()))
+                        step.getSubsteps() != null &&
+                                !step.getSubsteps().isEmpty() &&
+                                step.getSubsteps().stream()
+                                        .allMatch(s -> Boolean.TRUE.equals(s.getIsDone()))
                 );
 
         if (allDone) {

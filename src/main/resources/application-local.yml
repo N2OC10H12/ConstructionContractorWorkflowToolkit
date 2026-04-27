@@ -16,6 +16,11 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
+
+    properties:
+      hibernate:
+        default_schema: public
+
     open-in-view: false
 
   flyway:

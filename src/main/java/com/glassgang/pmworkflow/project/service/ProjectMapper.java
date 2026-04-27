@@ -24,6 +24,7 @@ public class ProjectMapper {
         dto.setStatus(statusService.computeProjectStatus(project));
 
         List<ProjectStepResponse> steps = project.getSteps().stream()
+                .sorted((a, b) -> Integer.compare(a.getOrderIndex(), b.getOrderIndex()))
                 .map(this::toStep)
                 .collect(Collectors.toList());
 
@@ -40,6 +41,7 @@ public class ProjectMapper {
         dto.setOrderIndex(step.getOrderIndex());
 
         List<ProjectSubstepResponse> substeps = step.getSubsteps().stream()
+                .sorted((a, b) -> Integer.compare(a.getOrderIndex(), b.getOrderIndex()))
                 .map(this::toSubstep)
                 .collect(Collectors.toList());
 
@@ -58,6 +60,15 @@ public class ProjectMapper {
         dto.setIsDone(substep.getIsDone());
         dto.setStatus(statusService.computeSubstepStatus(substep));
 
+        return dto;
+    }
+
+    public ProjectSummaryResponse toSummary(Project project) {
+        ProjectSummaryResponse dto = new ProjectSummaryResponse();
+        dto.setId(project.getId());
+        dto.setName(project.getName());
+        dto.setProjectDeadline(project.getProjectDeadline());
+        dto.setStatus(statusService.computeProjectStatus(project));
         return dto;
     }
 }
