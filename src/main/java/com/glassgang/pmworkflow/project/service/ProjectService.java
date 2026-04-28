@@ -42,26 +42,29 @@ public class ProjectService {
     private final ProjectMapper projectMapper;
     private final WorkflowTemplateRepository workflowTemplateRepository;
     private final AppUserRepository appUserRepository;
+    private final ProjectAccessService projectAccessService;
 
     public ProjectService(ProjectRepository projectRepository,
                           ProjectMapper projectMapper,
                           WorkflowTemplateRepository workflowTemplateRepository,
                           AppUserRepository appUserRepository,
                           ProjectStepRepository projectStepRepository,
-                          ProjectSubstepRepository projectSubstepRepository) {
+                          ProjectSubstepRepository projectSubstepRepository,
+                          ProjectAccessService projectAccessService) {
         this.projectRepository = projectRepository;
         this.projectMapper = projectMapper;
         this.workflowTemplateRepository = workflowTemplateRepository;
         this.appUserRepository = appUserRepository;
         this.projectStepRepository = projectStepRepository;
         this.projectSubstepRepository = projectSubstepRepository;
+        this.projectAccessService = projectAccessService;
     }
 
     @Transactional(readOnly = true)
     public ProjectDetailsResponse getProject(UUID projectId) {
         Project project = projectRepository.findWithStepsById(projectId)
                 .orElseThrow(() -> new NotFoundException("Project not found"));
-
+        projectAccessService.requireProjectViewAccess(project);
         project.getSteps().forEach(step -> step.getSubsteps().size());
 
         return projectMapper.toDetails(project);
@@ -69,11 +72,29 @@ public class ProjectService {
 
     @Transactional(readOnly = true)
     public List<ProjectSummaryResponse> getProjects() {
-        return projectRepository.findAll().stream()
-                .map(project -> {
-                    // DO NOT touch steps here
-                    return projectMapper.toSummary(project);
-                })
+
+        AppUser user = (AppUser) org.springframework.security.core.context.SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getPrincipal();
+
+        List<Project> projects;
+
+        if ("ADMIN".equalsIgnoreCase(user.getRole()) ||
+                "SUPERVISOR".equalsIgnoreCase(user.getRole())) {
+
+            projects = projectRepository.findAll();
+
+        } else if ("PM".equalsIgnoreCase(user.getRole())) {
+
+            projects = projectRepository.findByOwner_Id(user.getId());
+
+        } else {
+            throw new com.glassgang.pmworkflow.common.exception.ForbiddenException("Unknown role");
+        }
+
+        return projects.stream()
+                .map(projectMapper::toSummary)
                 .toList();
     }
 
@@ -153,11 +174,15 @@ public class ProjectService {
         ProjectSubstep substep = projectSubstepRepository.findById(substepId)
                 .orElseThrow(() -> new NotFoundException("Substep not found"));
 
+        Project project = substep.getStep().getProject();
+
+        projectAccessService.requireProjectEditAccess(project);
+
         substep.setIsDone(true);
 
         projectSubstepRepository.save(substep);
 
-        UUID projectId = substep.getStep().getProject().getId();
+        UUID projectId = project.getId();
 
         entityManager.flush();
         entityManager.clear();
@@ -171,6 +196,8 @@ public class ProjectService {
                 .orElseThrow(() -> new NotFoundException("Project step not found"));
 
         Project project = step.getProject();
+
+        projectAccessService.requireProjectEditAccess(project);
 
         if (request.getDeadline() != null &&
                 project.getProjectDeadline() != null &&

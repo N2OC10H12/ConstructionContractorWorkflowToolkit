@@ -18,5 +18,5 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
     @EntityGraph(attributePaths = {"steps"})
     @Query("select p from Project p where p.id = :id")
     Optional<Project> findWithStepsById(@Param("id") UUID id);
-
+    List<Project> findByOwner_Id(UUID ownerId);
 }

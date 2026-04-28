@@ -69,6 +69,7 @@ public class SubstepNoteService {
         response.setNoteText(note.getNoteText());
         response.setCreatedBy(note.getCreatedBy());
         response.setCreatedAt(note.getCreatedAt());
+
         return response;
     }
 }

@@ -1,5 +1,7 @@
 package com.glassgang.pmworkflow.common.util;
 
+import com.glassgang.pmworkflow.user.entity.AppUser;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
 import java.util.UUID;
@@ -7,11 +9,15 @@ import java.util.UUID;
 @Component
 public class CurrentUserUtil {
 
-    // TEMP until JWT/security is implemented
-    private static final UUID TEMP_USER_ID =
-            UUID.fromString("3ecb4f1c-e784-4743-a0df-989a6b5cf844");
-
     public UUID getCurrentUserId() {
-        return TEMP_USER_ID;
+        Object principal = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getPrincipal();
+
+        if (principal instanceof AppUser user) {
+            return user.getId();
+        }
+
+        throw new RuntimeException("No authenticated user");
     }
 }
