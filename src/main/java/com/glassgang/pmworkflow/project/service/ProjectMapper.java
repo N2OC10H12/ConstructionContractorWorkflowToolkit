@@ -4,6 +4,7 @@ import com.glassgang.pmworkflow.project.dto.*;
 import com.glassgang.pmworkflow.project.entity.*;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -68,7 +69,15 @@ public class ProjectMapper {
         dto.setId(project.getId());
         dto.setName(project.getName());
         dto.setProjectDeadline(project.getProjectDeadline());
-        dto.setStatus(statusService.computeProjectStatus(project));
+
+        // SAFE STATUS (no steps access)
+        if (project.getProjectDeadline() != null &&
+                project.getProjectDeadline().isBefore(LocalDate.now())) {
+            dto.setStatus(ComputedStatus.RED);
+        } else {
+            dto.setStatus(ComputedStatus.NEUTRAL);
+        }
+
         return dto;
     }
 }
