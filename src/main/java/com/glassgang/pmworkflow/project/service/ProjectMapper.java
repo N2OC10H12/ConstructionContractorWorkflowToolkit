@@ -24,6 +24,8 @@ public class ProjectMapper {
         dto.setName(project.getName());
         dto.setStatus(statusService.computeProjectStatus(project));
 
+        dto.setPlanningComplete(statusService.isPlanningComplete(project));
+
         List<ProjectStepResponse> steps = project.getSteps().stream()
                 .sorted((a, b) -> Integer.compare(a.getOrderIndex(), b.getOrderIndex()))
                 .map(this::toStep)

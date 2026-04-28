@@ -48,10 +48,7 @@
   </component>
   <component name="DBNavigator.Project.DatabaseConsoleManager">
     <connection id="a531eccf-3376-4e22-9b0b-2574e1559dfd">
-      <console name="PM Workflow 0" type="STANDARD" schema="pm_workflow" session="Main"><![CDATA[SELECT id, name
-FROM public.project_substep
-where step_id = '84669e1a-3856-4483-959f-59121be5e1ea';]]></console>
-      <console name="PM Workflow 0 1" type="STANDARD" schema="pm_workflow" session="Main"><![CDATA[SELECT current_database(), current_user, now();]]></console>
+      <console name="PM Workflow 0" type="STANDARD" schema="pm_workflow" session="Main"><![CDATA[SELECT * FROM public.project_step]]></console>
     </connection>
   </component>
   <component name="DBNavigator.Project.DatabaseEditorStateManager">

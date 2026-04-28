@@ -38,5 +38,6 @@ app:
     secret: CHANGE_THIS_TO_LONG_RANDOM_SECRET_CHANGE_THIS_TO_LONG_RANDOM_SECRET
     expiration-minutes: 120
 
+pmworkflow:
   file-storage:
-    root: C:/apps/pm-workflow/storage
+    root-path: "C:/apps/pmworkflow/uploads"

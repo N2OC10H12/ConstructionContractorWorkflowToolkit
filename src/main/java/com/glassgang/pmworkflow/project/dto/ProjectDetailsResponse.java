@@ -14,7 +14,7 @@ public class ProjectDetailsResponse {
     private ComputedStatus status;
     private UUID id;
     private String name;
-
+    private Boolean planningComplete;
     private List<ProjectStepResponse> steps;
 
     // later: ComputedStatus status

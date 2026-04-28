@@ -11,6 +11,8 @@ import java.time.LocalDate;
 @Service
 public class ProjectStatusService {
 
+    private Boolean planningComplete;
+
     public ComputedStatus computeSubstepStatus(ProjectSubstep substep) {
         return Boolean.TRUE.equals(substep.getIsDone())
                 ? ComputedStatus.GREEN
@@ -60,5 +62,14 @@ public class ProjectStatusService {
         }
 
         return ComputedStatus.NEUTRAL;
+    }
+
+    public boolean isPlanningComplete(Project project) {
+        if (project.getSteps() == null || project.getSteps().isEmpty()) {
+            return false;
+        }
+
+        return project.getSteps().stream()
+                .allMatch(step -> step.getDeadline() != null);
     }
 }
