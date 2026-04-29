@@ -1,6 +1,8 @@
 package com.glassgang.pmworkflow.project.service;
 
+import com.glassgang.pmworkflow.audit.service.AuditService;
 import com.glassgang.pmworkflow.common.exception.BadRequestException;
+import com.glassgang.pmworkflow.common.exception.ForbiddenException;
 import com.glassgang.pmworkflow.project.dto.CreateProjectRequest;
 import com.glassgang.pmworkflow.project.dto.UpdateStepDeadlineRequest;
 import com.glassgang.pmworkflow.project.repository.ProjectStepRepository;
@@ -19,6 +21,7 @@ import com.glassgang.pmworkflow.workflow.entity.WorkflowTemplateStep;
 import com.glassgang.pmworkflow.project.entity.ProjectSubstep;
 import com.glassgang.pmworkflow.workflow.entity.WorkflowTemplateSubstep;
 
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 import jakarta.persistence.EntityManager;
@@ -43,6 +46,7 @@ public class ProjectService {
     private final WorkflowTemplateRepository workflowTemplateRepository;
     private final AppUserRepository appUserRepository;
     private final ProjectAccessService projectAccessService;
+    private final AuditService auditService;
 
     public ProjectService(ProjectRepository projectRepository,
                           ProjectMapper projectMapper,
@@ -50,7 +54,8 @@ public class ProjectService {
                           AppUserRepository appUserRepository,
                           ProjectStepRepository projectStepRepository,
                           ProjectSubstepRepository projectSubstepRepository,
-                          ProjectAccessService projectAccessService) {
+                          ProjectAccessService projectAccessService,
+                          AuditService auditService) {
         this.projectRepository = projectRepository;
         this.projectMapper = projectMapper;
         this.workflowTemplateRepository = workflowTemplateRepository;
@@ -58,6 +63,7 @@ public class ProjectService {
         this.projectStepRepository = projectStepRepository;
         this.projectSubstepRepository = projectSubstepRepository;
         this.projectAccessService = projectAccessService;
+        this.auditService = auditService;
     }
 
     @Transactional(readOnly = true)
@@ -105,12 +111,29 @@ public class ProjectService {
             throw new BadRequestException("Project name is required");
         }
 
-        if (request.getOwnerUserId() == null) {
-            throw new BadRequestException("Owner user id is required");
-        }
+        AppUser currentUser = (AppUser) SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getPrincipal();
 
-        AppUser owner = appUserRepository.findById(request.getOwnerUserId())
-                .orElseThrow(() -> new NotFoundException("Owner user not found"));
+        AppUser owner;
+
+        if ("ADMIN".equalsIgnoreCase(currentUser.getRole())) {
+
+            if (request.getOwnerUserId() != null) {
+                owner = appUserRepository.findById(request.getOwnerUserId())
+                        .orElseThrow(() -> new NotFoundException("Owner user not found"));
+            } else {
+                owner = currentUser;
+            }
+
+        } else if ("PM".equalsIgnoreCase(currentUser.getRole())) {
+
+            owner = currentUser;
+
+        } else {
+            throw new ForbiddenException("Supervisor cannot create project");
+        }
 
         WorkflowTemplate template = workflowTemplateRepository.findByIsDefaultTrue()
                 .orElseThrow(() -> new NotFoundException("Default workflow template not found"));
@@ -124,6 +147,15 @@ public class ProjectService {
         project.setCreatedAt(LocalDateTime.now());
 
         Project savedProject = projectRepository.save(project);
+
+        auditService.log(
+                savedProject.getId(),
+                "PROJECT_CREATED",
+                "PROJECT",
+                savedProject.getId(),
+                null,
+                "name=" + savedProject.getName()
+        );
 
         List<ProjectStep> projectSteps = template.getSteps().stream()
                 .sorted(Comparator.comparing(WorkflowTemplateStep::getOrderIndex))
@@ -178,9 +210,20 @@ public class ProjectService {
 
         projectAccessService.requireProjectEditAccess(project);
 
+        Boolean oldValue = substep.getIsDone();
+
         substep.setIsDone(true);
 
         projectSubstepRepository.save(substep);
+
+        auditService.log(
+                project.getId(),
+                "SUBSTEP_COMPLETED",
+                "SUBSTEP",
+                substep.getId(),
+                "isDone=" + oldValue,
+                "isDone=" + substep.getIsDone()
+        );
 
         UUID projectId = project.getId();
 
@@ -233,9 +276,20 @@ public class ProjectService {
             throw new BadRequestException("Step deadline cannot be after next step deadline");
         }
 
+        var oldDeadline = step.getDeadline();
+
         step.setDeadline(request.getDeadline());
 
         projectStepRepository.save(step);
+
+        auditService.log(
+                project.getId(),
+                "STEP_DEADLINE_UPDATED",
+                "STEP",
+                step.getId(),
+                "deadline=" + oldDeadline,
+                "deadline=" + step.getDeadline()
+        );
 
         UUID projectId = project.getId();
 

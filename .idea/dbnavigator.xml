@@ -48,7 +48,43 @@
   </component>
   <component name="DBNavigator.Project.DatabaseConsoleManager">
     <connection id="a531eccf-3376-4e22-9b0b-2574e1559dfd">
-      <console name="PM Workflow 0" type="STANDARD" schema="pm_workflow" session="Main"><![CDATA[SELECT * FROM public.project_step]]></console>
+      <console name="PM Workflow 0" type="STANDARD" schema="pm_workflow" session="Main"><![CDATA[SELECT id, username, password_hash, role
+FROM public.users
+--WHERE username = 'pm2';
+
+UPDATE public.users
+SET password_hash = '$2a$10$Q8ibvkn.tLMYIjSgAKaDTeoGvKxGpORkXgG/T24vP99gUsBJyQvQ6'
+WHERE username = 'pm1';
+
+INSERT INTO public.users (id, username, password_hash, role, created_at)
+VALUES (
+  gen_random_uuid(),
+  'sw1',
+  '$2a$10$Q8ibvkn.tLMYIjSgAKaDTeoGvKxGpORkXgG/T24vP99gUsBJyQvQ6',
+  'SUPERVISOR',
+  now()
+);
+
+UPDATE public.users
+SET password_hash = '$2a$10$Q8ibvkn.tLMYIjSgAKaDTeoGvKxGpORkXgG/T24vP99gUsBJyQvQ6'
+WHERE username = 'pm2'
+
+SELECT *
+FROM public.project
+
+SELECT id
+FROM public.project_step
+where project_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+
+SELECT *
+FROM public.project_substep
+WHERE step_id = 'aaaaaaaa-1111-1111-1111-aaaaaaaaaaaa'
+
+
+
+UPDATE public.project
+SET owner_user_id = '7560b4d4-c32a-460e-9605-ad46e7c17122'
+WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';]]></console>
     </connection>
   </component>
   <component name="DBNavigator.Project.DatabaseEditorStateManager">

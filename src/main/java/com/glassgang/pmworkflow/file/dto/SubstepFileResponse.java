@@ -13,7 +13,8 @@ public class SubstepFileResponse {
     private UUID id;
     private UUID substepId;
     private String fileName;
-    private String fileUrl;
     private UUID uploadedBy;
     private LocalDateTime uploadedAt;
+    private String previewUrl;
+    private String downloadUrl;
 }

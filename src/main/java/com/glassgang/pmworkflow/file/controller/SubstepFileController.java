@@ -1,7 +1,9 @@
 package com.glassgang.pmworkflow.file.controller;
 
+import com.glassgang.pmworkflow.file.dto.DeleteSubstepFilesRequest;
 import com.glassgang.pmworkflow.file.dto.SubstepFileResponse;
 import com.glassgang.pmworkflow.file.service.SubstepFileService;
+import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -38,5 +40,13 @@ public class SubstepFileController {
     @GetMapping
     public List<SubstepFileResponse> getFiles(@PathVariable UUID substepId) {
         return fileService.getFiles(substepId);
+    }
+
+    @DeleteMapping
+    public void deleteFiles(
+            @PathVariable UUID substepId,
+            @Valid @RequestBody DeleteSubstepFilesRequest request
+    ) {
+        fileService.deleteFiles(substepId, request.getFileIds());
     }
 }

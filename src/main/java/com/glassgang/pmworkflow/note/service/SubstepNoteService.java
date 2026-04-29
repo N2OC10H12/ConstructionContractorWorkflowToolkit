@@ -1,5 +1,6 @@
 package com.glassgang.pmworkflow.note.service;
 
+import com.glassgang.pmworkflow.audit.service.AuditService;
 import com.glassgang.pmworkflow.common.exception.BadRequestException;
 import com.glassgang.pmworkflow.common.exception.NotFoundException;
 import com.glassgang.pmworkflow.common.util.CurrentUserUtil;
@@ -9,6 +10,7 @@ import com.glassgang.pmworkflow.note.entity.SubstepNote;
 import com.glassgang.pmworkflow.note.repository.SubstepNoteRepository;
 import com.glassgang.pmworkflow.project.entity.ProjectSubstep;
 import com.glassgang.pmworkflow.project.repository.ProjectSubstepRepository;
+import com.glassgang.pmworkflow.project.service.ProjectAccessService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,13 +24,19 @@ public class SubstepNoteService {
     private final SubstepNoteRepository noteRepository;
     private final ProjectSubstepRepository substepRepository;
     private final CurrentUserUtil currentUserUtil;
+    private final ProjectAccessService projectAccessService;
+    private final AuditService auditService;
 
     public SubstepNoteService(SubstepNoteRepository noteRepository,
                               ProjectSubstepRepository substepRepository,
-                              CurrentUserUtil currentUserUtil) {
+                              CurrentUserUtil currentUserUtil,
+                              ProjectAccessService projectAccessService,
+                              AuditService auditService) {
         this.noteRepository = noteRepository;
         this.substepRepository = substepRepository;
         this.currentUserUtil = currentUserUtil;
+        this.projectAccessService = projectAccessService;
+        this.auditService = auditService;
     }
 
     @Transactional
@@ -40,6 +48,10 @@ public class SubstepNoteService {
         ProjectSubstep substep = substepRepository.findById(substepId)
                 .orElseThrow(() -> new NotFoundException("Substep not found"));
 
+        projectAccessService.requireProjectEditAccess(
+                substep.getStep().getProject()
+        );
+
         SubstepNote note = new SubstepNote();
         note.setId(UUID.randomUUID());
         note.setSubstep(substep);
@@ -49,13 +61,28 @@ public class SubstepNoteService {
 
         note.setCreatedAt(LocalDateTime.now());
 
-        return toResponse(noteRepository.save(note));
+        SubstepNote savedNote = noteRepository.save(note);
+
+        auditService.log(
+                substep.getStep().getProject().getId(),
+                "NOTE_CREATED",
+                "NOTE",
+                note.getId(),
+                null,
+                "text=" + note.getNoteText()
+        );
+
+        return toResponse(savedNote);
     }
 
     @Transactional(readOnly = true)
     public List<SubstepNoteResponse> getNotes(UUID substepId) {
         ProjectSubstep substep = substepRepository.findById(substepId)
                 .orElseThrow(() -> new NotFoundException("Substep not found"));
+
+        projectAccessService.requireProjectViewAccess(
+                substep.getStep().getProject()
+        );
 
         return noteRepository.findBySubstepOrderByCreatedAtAsc(substep).stream()
                 .map(this::toResponse)

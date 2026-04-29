@@ -1,6 +1,8 @@
 package com.glassgang.pmworkflow.file.service;
 
+import com.glassgang.pmworkflow.audit.service.AuditService;
 import com.glassgang.pmworkflow.common.exception.BadRequestException;
+import com.glassgang.pmworkflow.project.service.ProjectAccessService;
 import com.glassgang.pmworkflow.common.exception.NotFoundException;
 import com.glassgang.pmworkflow.common.util.CurrentUserUtil;
 import com.glassgang.pmworkflow.file.dto.SubstepFileResponse;
@@ -26,15 +28,21 @@ public class SubstepFileService {
     private final ProjectSubstepRepository substepRepository;
     private final FileStorageService fileStorageService;
     private final CurrentUserUtil currentUserUtil;
+    private final ProjectAccessService projectAccessService;
+    private final AuditService auditService;
 
     public SubstepFileService(SubstepFileRepository fileRepository,
                               ProjectSubstepRepository substepRepository,
                               FileStorageService fileStorageService,
-                              CurrentUserUtil currentUserUtil) {
+                              CurrentUserUtil currentUserUtil,
+                              ProjectAccessService projectAccessService,
+                              AuditService auditService) {
         this.fileRepository = fileRepository;
         this.substepRepository = substepRepository;
         this.fileStorageService = fileStorageService;
         this.currentUserUtil = currentUserUtil;
+        this.projectAccessService = projectAccessService;
+        this.auditService = auditService;
     }
 
     @Transactional
@@ -46,6 +54,10 @@ public class SubstepFileService {
 
         String storedPath = fileStorageService.store(substepId, fileId, file);
 
+        projectAccessService.requireProjectEditAccess(
+                substep.getStep().getProject()
+        );
+
         SubstepFile substepFile = new SubstepFile();
         substepFile.setId(fileId);
         substepFile.setSubstep(substep);
@@ -56,13 +68,28 @@ public class SubstepFileService {
 
         substepFile.setUploadedAt(LocalDateTime.now());
 
-        return toResponse(fileRepository.save(substepFile));
+        SubstepFile savedFile = fileRepository.save(substepFile);
+
+        auditService.log(
+                substep.getStep().getProject().getId(),
+                "FILE_UPLOADED",
+                "FILE",
+                savedFile.getId(),
+                null,
+                "name=" + savedFile.getFileName()
+        );
+
+        return toResponse(savedFile);
     }
 
     @Transactional(readOnly = true)
     public List<SubstepFileResponse> getFiles(UUID substepId) {
         ProjectSubstep substep = substepRepository.findById(substepId)
                 .orElseThrow(() -> new NotFoundException("Substep not found"));
+
+        projectAccessService.requireProjectEditAccess(
+                substep.getStep().getProject()
+        );
 
         return fileRepository.findBySubstepOrderByUploadedAtAsc(substep).stream()
                 .map(this::toResponse)
@@ -74,7 +101,8 @@ public class SubstepFileService {
         response.setId(file.getId());
         response.setSubstepId(file.getSubstep().getId());
         response.setFileName(file.getFileName());
-        response.setFileUrl(file.getFileUrl());
+        response.setPreviewUrl("/api/files/" + file.getId() + "/preview");
+        response.setDownloadUrl("/api/files/" + file.getId() + "/download");
         response.setUploadedBy(file.getUploadedBy());
         response.setUploadedAt(file.getUploadedAt());
         return response;
@@ -93,14 +121,24 @@ public class SubstepFileService {
 
     @Transactional(readOnly = true)
     public SubstepFile getFileEntity(UUID fileId) {
-        return fileRepository.findById(fileId)
+        SubstepFile file = fileRepository.findById(fileId)
                 .orElseThrow(() -> new NotFoundException("File not found"));
+
+        projectAccessService.requireProjectViewAccess(
+                file.getSubstep().getStep().getProject()
+        );
+
+        return file;
     }
 
     @Transactional
     public void deleteFile(UUID fileId) {
         SubstepFile file = fileRepository.findById(fileId)
                 .orElseThrow(() -> new NotFoundException("File not found"));
+
+        projectAccessService.requireProjectEditAccess(
+                file.getSubstep().getStep().getProject()
+        );
 
         Path path = Paths.get(file.getFileUrl());
 
@@ -110,6 +148,64 @@ public class SubstepFileService {
             throw new BadRequestException("Failed to delete physical file");
         }
 
+        auditService.log(
+                file.getSubstep().getStep().getProject().getId(),
+                "FILE_DELETED",
+                "FILE",
+                file.getId(),
+                "name=" + file.getFileName(),
+                null
+        );
+
         fileRepository.delete(file);
+    }
+
+    @Transactional
+    public void deleteFiles(UUID substepId, List<UUID> fileIds) {
+        if (fileIds == null || fileIds.isEmpty()) {
+            throw new BadRequestException("At least one file id is required");
+        }
+
+        ProjectSubstep substep = substepRepository.findById(substepId)
+                .orElseThrow(() -> new NotFoundException("Substep not found"));
+
+        projectAccessService.requireProjectEditAccess(
+                substep.getStep().getProject()
+        );
+
+        List<SubstepFile> files = fileRepository.findAllById(fileIds);
+
+        if (files.size() != fileIds.size()) {
+            throw new NotFoundException("One or more files not found");
+        }
+
+        for (SubstepFile file : files) {
+            if (!file.getSubstep().getId().equals(substepId)) {
+                throw new BadRequestException("One or more files do not belong to this substep");
+            }
+        }
+
+        for (SubstepFile file : files) {
+            Path path = Paths.get(file.getFileUrl());
+
+            try {
+                Files.deleteIfExists(path);
+            } catch (Exception e) {
+                throw new BadRequestException("Failed to delete physical file");
+            }
+        }
+
+        for (SubstepFile file : files) {
+            auditService.log(
+                    file.getSubstep().getStep().getProject().getId(),
+                    "FILE_DELETED",
+                    "FILE",
+                    file.getId(),
+                    "name=" + file.getFileName(),
+                    null
+            );
+        }
+
+        fileRepository.deleteAll(files);
     }
 }
