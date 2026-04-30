@@ -2,6 +2,7 @@ package com.glassgang.pmworkflow.project.dto;
 
 import com.glassgang.pmworkflow.project.entity.ComputedStatus;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import lombok.Getter;
@@ -15,6 +16,7 @@ public class ProjectStepResponse {
     private UUID id;
     private String name;
     private Integer orderIndex;
+    private LocalDate deadline;
 
     private List<ProjectSubstepResponse> substeps;
 

@@ -6,7 +6,7 @@
   </component>
   <component name="DBNavigator.Project.DataEditorManager">
     <record-view-column-sorting-type value="BY_INDEX" />
-    <value-preview-text-wrapping value="true" />
+    <value-preview-text-wrapping value="false" />
     <value-preview-pinned value="false" />
   </component>
   <component name="DBNavigator.Project.DataExportManager">
@@ -50,7 +50,7 @@
     <connection id="a531eccf-3376-4e22-9b0b-2574e1559dfd">
       <console name="PM Workflow 0" type="STANDARD" schema="pm_workflow" session="Main"><![CDATA[SELECT id, username, password_hash, role
 FROM public.users
---WHERE username = 'pm2';
+WHERE username = 'pm1';
 
 UPDATE public.users
 SET password_hash = '$2a$10$Q8ibvkn.tLMYIjSgAKaDTeoGvKxGpORkXgG/T24vP99gUsBJyQvQ6'
@@ -72,19 +72,32 @@ WHERE username = 'pm2'
 SELECT *
 FROM public.project
 
-SELECT id
+SELECT *
 FROM public.project_step
-where project_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+where project_id = '8fc546b3-2db5-4666-927c-423bb0691640'
 
 SELECT *
 FROM public.project_substep
-WHERE step_id = 'aaaaaaaa-1111-1111-1111-aaaaaaaaaaaa'
+WHERE step_id = 'aa1f2c5b-656f-4a19-85e6-5192cab83f9c'
 
 
 
 UPDATE public.project
 SET owner_user_id = '7560b4d4-c32a-460e-9605-ad46e7c17122'
-WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';]]></console>
+WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+
+SELECT table_schema, table_name
+FROM information_schema.tables
+WHERE table_schema = 'public'
+  AND table_name ILIKE '%audit%';
+
+SELECT column_name, data_type, is_nullable
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name = 'project_audit_log'
+ORDER BY ordinal_position;
+
+SELECT * FROM public.project_audit_log ORDER BY created_at DESC;]]></console>
     </connection>
   </component>
   <component name="DBNavigator.Project.DatabaseEditorStateManager">

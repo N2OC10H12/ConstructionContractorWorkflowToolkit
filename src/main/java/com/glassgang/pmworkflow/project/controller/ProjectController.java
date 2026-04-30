@@ -1,11 +1,13 @@
 package com.glassgang.pmworkflow.project.controller;
 
+import com.glassgang.pmworkflow.project.dto.RenameProjectRequest;
 import com.glassgang.pmworkflow.project.dto.ProjectDetailsResponse;
 import com.glassgang.pmworkflow.project.dto.CreateProjectRequest;
 import com.glassgang.pmworkflow.project.dto.UpdateStepDeadlineRequest;
 import com.glassgang.pmworkflow.project.service.ProjectService;
 import com.glassgang.pmworkflow.project.dto.ProjectSummaryResponse;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.ResponseEntity;
 
 import java.util.UUID;
 import java.util.List;
@@ -46,6 +48,20 @@ public class ProjectController {
             @RequestBody UpdateStepDeadlineRequest request
     ) {
         return projectService.updateStepDeadline(id, request);
+    }
+
+    @PatchMapping("/{id}/rename")
+    public ProjectDetailsResponse renameProject(
+            @PathVariable UUID id,
+            @RequestBody RenameProjectRequest request
+    ) {
+        return projectService.renameProject(id, request);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteProject(@PathVariable UUID id) {
+        projectService.deleteProject(id);
+        return ResponseEntity.noContent().build();
     }
 
 }

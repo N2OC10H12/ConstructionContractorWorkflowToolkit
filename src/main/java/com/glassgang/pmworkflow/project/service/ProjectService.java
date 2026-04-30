@@ -1,6 +1,7 @@
 package com.glassgang.pmworkflow.project.service;
 
 import com.glassgang.pmworkflow.audit.service.AuditService;
+import com.glassgang.pmworkflow.project.dto.RenameProjectRequest;
 import com.glassgang.pmworkflow.common.exception.BadRequestException;
 import com.glassgang.pmworkflow.common.exception.ForbiddenException;
 import com.glassgang.pmworkflow.project.dto.CreateProjectRequest;
@@ -297,5 +298,56 @@ public class ProjectService {
         entityManager.clear();
 
         return getProject(projectId);
+    }
+
+    @Transactional
+    public ProjectDetailsResponse renameProject(UUID projectId, RenameProjectRequest request) {
+
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new NotFoundException("Project not found"));
+
+        projectAccessService.requireProjectEditAccess(project);
+
+        if (request.getName() == null || request.getName().isBlank()) {
+            throw new BadRequestException("Project name is required");
+        }
+
+        String oldName = project.getName();
+        String newName = request.getName().trim();
+
+        if (oldName.equals(newName)) {
+            return getProject(projectId);
+        }
+
+        project.setName(newName);
+        projectRepository.save(project);
+
+        auditService.log(
+                project.getId(),
+                "PROJECT_RENAMED",
+                "PROJECT",
+                project.getId(),
+                "name=" + oldName,
+                "name=" + newName
+        );
+
+        entityManager.flush();
+        entityManager.clear();
+
+        return getProject(projectId);
+    }
+
+    @Transactional
+    public void deleteProject(UUID projectId) {
+
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new NotFoundException("Project not found"));
+
+        projectAccessService.requireProjectEditAccess(project);
+
+        projectRepository.delete(project);
+
+        entityManager.flush();
+        entityManager.clear();
     }
 }
