@@ -1,6 +1,7 @@
 package com.glassgang.pmworkflow.project.service;
 
 import com.glassgang.pmworkflow.audit.service.AuditService;
+import com.glassgang.pmworkflow.project.repository.projection.ProjectSummaryFlatRow;
 import com.glassgang.pmworkflow.project.repository.projection.ProjectStepSummaryRow;
 import com.glassgang.pmworkflow.project.dto.RenameProjectRequest;
 import com.glassgang.pmworkflow.common.exception.BadRequestException;
@@ -15,7 +16,9 @@ import com.glassgang.pmworkflow.workflow.entity.WorkflowTemplate;
 import com.glassgang.pmworkflow.workflow.repository.WorkflowTemplateRepository;
 import com.glassgang.pmworkflow.common.exception.NotFoundException;
 import com.glassgang.pmworkflow.project.dto.ProjectDetailsResponse;
+import com.glassgang.pmworkflow.project.dto.ProjectOwnerResponse;
 import com.glassgang.pmworkflow.project.dto.ProjectStepSummaryResponse;
+import com.glassgang.pmworkflow.project.dto.ProjectSubstepResponse;
 import com.glassgang.pmworkflow.project.entity.ComputedStatus;
 import com.glassgang.pmworkflow.project.entity.Project;
 import com.glassgang.pmworkflow.project.repository.ProjectRepository;
@@ -93,22 +96,22 @@ public class ProjectService {
                 .getAuthentication()
                 .getPrincipal();
 
-        List<ProjectStepSummaryRow> rows;
+        List<ProjectSummaryFlatRow> rows;
 
         if ("ADMIN".equalsIgnoreCase(user.getRole()) ||
                 "SUPERVISOR".equalsIgnoreCase(user.getRole())) {
 
-            rows = projectRepository.findAllProjectStepSummaryRows();
+            rows = projectRepository.findAllProjectSummaryFlatRows();
 
         } else if ("PM".equalsIgnoreCase(user.getRole())) {
 
-            rows = projectRepository.findProjectStepSummaryRowsByOwnerId(user.getId());
+            rows = projectRepository.findProjectSummaryFlatRowsByOwnerId(user.getId());
 
         } else {
             throw new ForbiddenException("Unknown role");
         }
 
-        return buildProjectSummaries(rows);
+        return buildProjectSummariesFromFlatRows(rows);
     }
 
     @Transactional
@@ -393,6 +396,87 @@ public class ProjectService {
                             projectDto.getProjectDeadline(),
                             projectStepStatuses.get(projectId)));
         });
+
+        return new ArrayList<>(projectMap.values());
+    }
+
+    private List<ProjectSummaryResponse> buildProjectSummariesFromFlatRows(List<ProjectSummaryFlatRow> rows) {
+
+        Map<UUID, ProjectSummaryResponse> projectMap = new LinkedHashMap<>();
+        Map<UUID, Map<UUID, ProjectStepSummaryResponse>> projectStepsMap = new LinkedHashMap<>();
+
+        for (ProjectSummaryFlatRow row : rows) {
+
+            ProjectSummaryResponse projectDto = projectMap.computeIfAbsent(row.getProjectId(), projectId -> {
+                ProjectSummaryResponse dto = new ProjectSummaryResponse();
+                dto.setId(row.getProjectId());
+                dto.setName(row.getProjectName());
+                dto.setProjectDeadline(row.getProjectDeadline());
+                dto.setSteps(new ArrayList<>());
+
+                ProjectOwnerResponse ownerDto = new ProjectOwnerResponse();
+                ownerDto.setId(row.getOwnerId());
+                ownerDto.setUsername(row.getOwnerUsername());
+                ownerDto.setRole(row.getOwnerRole());
+                dto.setOwner(ownerDto);
+
+                return dto;
+            });
+
+            if (row.getStepId() == null) {
+                continue;
+            }
+
+            Map<UUID, ProjectStepSummaryResponse> stepsById = projectStepsMap.computeIfAbsent(row.getProjectId(),
+                    projectId -> new LinkedHashMap<>());
+
+            ProjectStepSummaryResponse stepDto = stepsById.computeIfAbsent(row.getStepId(), stepId -> {
+                ProjectStepSummaryResponse dto = new ProjectStepSummaryResponse();
+                dto.setId(row.getStepId());
+                dto.setName(row.getStepName());
+                dto.setOrderIndex(row.getStepOrderIndex());
+                dto.setDeadline(row.getStepDeadline());
+                dto.setSubsteps(new ArrayList<>());
+                projectDto.getSteps().add(dto);
+                return dto;
+            });
+
+            if (row.getSubstepId() != null) {
+                ProjectSubstepResponse substepDto = new ProjectSubstepResponse();
+                substepDto.setId(row.getSubstepId());
+                substepDto.setName(row.getSubstepName());
+                substepDto.setOrderIndex(row.getSubstepOrderIndex());
+                substepDto.setIsDone(row.getSubstepIsDone());
+                substepDto.setStatus(projectStatusService.computeSubstepStatusFromDone(row.getSubstepIsDone()));
+
+                stepDto.getSubsteps().add(substepDto);
+            }
+        }
+
+        for (ProjectSummaryResponse projectDto : projectMap.values()) {
+
+            List<ComputedStatus> stepStatuses = new ArrayList<>();
+
+            for (ProjectStepSummaryResponse stepDto : projectDto.getSteps()) {
+                long totalSubsteps = stepDto.getSubsteps().size();
+                long doneSubsteps = stepDto.getSubsteps().stream()
+                        .filter(substep -> Boolean.TRUE.equals(substep.getIsDone()))
+                        .count();
+
+                ComputedStatus stepStatus = projectStatusService.computeStepStatusFromCounts(
+                        stepDto.getDeadline(),
+                        totalSubsteps,
+                        doneSubsteps);
+
+                stepDto.setStatus(stepStatus);
+                stepStatuses.add(stepStatus);
+            }
+
+            projectDto.setStatus(
+                    projectStatusService.computeProjectStatusFromStepStatuses(
+                            projectDto.getProjectDeadline(),
+                            stepStatuses));
+        }
 
         return new ArrayList<>(projectMap.values());
     }

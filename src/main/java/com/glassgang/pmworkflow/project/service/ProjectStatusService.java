@@ -46,12 +46,10 @@ public class ProjectStatusService {
         }
 
         boolean allDone = project.getSteps().stream()
-                .allMatch(step ->
-                        step.getSubsteps() != null &&
-                                !step.getSubsteps().isEmpty() &&
-                                step.getSubsteps().stream()
-                                        .allMatch(s -> Boolean.TRUE.equals(s.getIsDone()))
-                );
+                .allMatch(step -> step.getSubsteps() != null &&
+                        !step.getSubsteps().isEmpty() &&
+                        step.getSubsteps().stream()
+                                .allMatch(s -> Boolean.TRUE.equals(s.getIsDone())));
 
         if (allDone) {
             return ComputedStatus.GREEN;
@@ -75,42 +73,46 @@ public class ProjectStatusService {
     }
 
     public ComputedStatus computeStepStatusFromCounts(
-        LocalDate deadline,
-        long totalSubsteps,
-        long doneSubsteps
-) {
-    boolean allDone = totalSubsteps > 0 && doneSubsteps == totalSubsteps;
+            LocalDate deadline,
+            long totalSubsteps,
+            long doneSubsteps) {
+        boolean allDone = totalSubsteps > 0 && doneSubsteps == totalSubsteps;
 
-    if (allDone) {
-        return ComputedStatus.GREEN;
-    }
+        if (allDone) {
+            return ComputedStatus.GREEN;
+        }
 
-    if (deadline != null && deadline.isBefore(LocalDate.now())) {
-        return ComputedStatus.RED;
-    }
+        if (deadline != null && deadline.isBefore(LocalDate.now())) {
+            return ComputedStatus.RED;
+        }
 
-    return ComputedStatus.NEUTRAL;
-}
-
-public ComputedStatus computeProjectStatusFromStepStatuses(
-        LocalDate projectDeadline,
-        List<ComputedStatus> stepStatuses
-) {
-    if (stepStatuses == null || stepStatuses.isEmpty()) {
         return ComputedStatus.NEUTRAL;
     }
 
-    boolean allDone = stepStatuses.stream()
-            .allMatch(status -> status == ComputedStatus.GREEN);
+    public ComputedStatus computeProjectStatusFromStepStatuses(
+            LocalDate projectDeadline,
+            List<ComputedStatus> stepStatuses) {
+        if (stepStatuses == null || stepStatuses.isEmpty()) {
+            return ComputedStatus.NEUTRAL;
+        }
 
-    if (allDone) {
-        return ComputedStatus.GREEN;
+        boolean allDone = stepStatuses.stream()
+                .allMatch(status -> status == ComputedStatus.GREEN);
+
+        if (allDone) {
+            return ComputedStatus.GREEN;
+        }
+
+        if (projectDeadline != null && projectDeadline.isBefore(LocalDate.now())) {
+            return ComputedStatus.RED;
+        }
+
+        return ComputedStatus.NEUTRAL;
     }
 
-    if (projectDeadline != null && projectDeadline.isBefore(LocalDate.now())) {
-        return ComputedStatus.RED;
+    public ComputedStatus computeSubstepStatusFromDone(Boolean isDone) {
+        return Boolean.TRUE.equals(isDone)
+                ? ComputedStatus.GREEN
+                : ComputedStatus.NEUTRAL;
     }
-
-    return ComputedStatus.NEUTRAL;
-}
 }

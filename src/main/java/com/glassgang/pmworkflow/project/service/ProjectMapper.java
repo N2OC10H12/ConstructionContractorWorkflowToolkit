@@ -95,4 +95,56 @@ public class ProjectMapper {
 
         return dto;
     }
+
+    public ProjectSummaryResponse toSummaryWithSubsteps(Project project) {
+
+    ProjectSummaryResponse dto = new ProjectSummaryResponse();
+
+    dto.setId(project.getId());
+    dto.setName(project.getName());
+    dto.setProjectDeadline(project.getProjectDeadline());
+    dto.setStatus(statusService.computeProjectStatus(project));
+
+    // owner
+    ProjectOwnerResponse ownerDto = new ProjectOwnerResponse();
+    ownerDto.setId(project.getOwner().getId());
+    ownerDto.setUsername(project.getOwner().getUsername());
+    ownerDto.setRole(project.getOwner().getRole());
+    dto.setOwner(ownerDto);
+
+    List<ProjectStepSummaryResponse> steps = project.getSteps().stream()
+            .sorted((a, b) -> Integer.compare(a.getOrderIndex(), b.getOrderIndex()))
+            .map(step -> {
+
+                ProjectStepSummaryResponse stepDto = new ProjectStepSummaryResponse();
+                stepDto.setId(step.getId());
+                stepDto.setName(step.getName());
+                stepDto.setOrderIndex(step.getOrderIndex());
+                stepDto.setDeadline(step.getDeadline());
+                stepDto.setStatus(statusService.computeStepStatus(step));
+
+                List<ProjectSubstepResponse> substeps = step.getSubsteps().stream()
+                        .sorted((a, b) -> Integer.compare(a.getOrderIndex(), b.getOrderIndex()))
+                        .map(sub -> {
+                            ProjectSubstepResponse subDto = new ProjectSubstepResponse();
+                            subDto.setId(sub.getId());
+                            subDto.setName(sub.getName());
+                            subDto.setOrderIndex(sub.getOrderIndex());
+                            subDto.setIsDone(sub.getIsDone());
+                            subDto.setStatus(statusService.computeSubstepStatus(sub));
+                            return subDto;
+                        })
+                        .toList();
+
+                stepDto.setSubsteps(substeps);
+
+                return stepDto;
+            })
+            .toList();
+
+    dto.setSteps(steps);
+
+    return dto;
 }
+}
+

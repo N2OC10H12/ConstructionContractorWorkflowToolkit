@@ -18,4 +18,6 @@ public class ProjectSummaryResponse {
     private LocalDate projectDeadline;
 
     private List<ProjectStepSummaryResponse> steps;
+
+    private ProjectOwnerResponse owner;
 }
