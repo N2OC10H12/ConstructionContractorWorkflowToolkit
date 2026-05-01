@@ -1,6 +1,7 @@
 package com.glassgang.pmworkflow.project.service;
 
 import com.glassgang.pmworkflow.audit.service.AuditService;
+import com.glassgang.pmworkflow.project.repository.projection.ProjectStepSummaryRow;
 import com.glassgang.pmworkflow.project.dto.RenameProjectRequest;
 import com.glassgang.pmworkflow.common.exception.BadRequestException;
 import com.glassgang.pmworkflow.common.exception.ForbiddenException;
@@ -14,6 +15,8 @@ import com.glassgang.pmworkflow.workflow.entity.WorkflowTemplate;
 import com.glassgang.pmworkflow.workflow.repository.WorkflowTemplateRepository;
 import com.glassgang.pmworkflow.common.exception.NotFoundException;
 import com.glassgang.pmworkflow.project.dto.ProjectDetailsResponse;
+import com.glassgang.pmworkflow.project.dto.ProjectStepSummaryResponse;
+import com.glassgang.pmworkflow.project.entity.ComputedStatus;
 import com.glassgang.pmworkflow.project.entity.Project;
 import com.glassgang.pmworkflow.project.repository.ProjectRepository;
 import com.glassgang.pmworkflow.project.dto.ProjectSummaryResponse;
@@ -34,6 +37,8 @@ import java.util.List;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.LinkedHashMap;
+import java.util.ArrayList;
 
 @Service
 public class ProjectService {
@@ -48,15 +53,17 @@ public class ProjectService {
     private final AppUserRepository appUserRepository;
     private final ProjectAccessService projectAccessService;
     private final AuditService auditService;
+    private final ProjectStatusService projectStatusService;
 
     public ProjectService(ProjectRepository projectRepository,
-                          ProjectMapper projectMapper,
-                          WorkflowTemplateRepository workflowTemplateRepository,
-                          AppUserRepository appUserRepository,
-                          ProjectStepRepository projectStepRepository,
-                          ProjectSubstepRepository projectSubstepRepository,
-                          ProjectAccessService projectAccessService,
-                          AuditService auditService) {
+            ProjectMapper projectMapper,
+            WorkflowTemplateRepository workflowTemplateRepository,
+            AppUserRepository appUserRepository,
+            ProjectStepRepository projectStepRepository,
+            ProjectSubstepRepository projectSubstepRepository,
+            ProjectAccessService projectAccessService,
+            AuditService auditService,
+            ProjectStatusService projectStatusService) {
         this.projectRepository = projectRepository;
         this.projectMapper = projectMapper;
         this.workflowTemplateRepository = workflowTemplateRepository;
@@ -65,6 +72,7 @@ public class ProjectService {
         this.projectSubstepRepository = projectSubstepRepository;
         this.projectAccessService = projectAccessService;
         this.auditService = auditService;
+        this.projectStatusService = projectStatusService;
     }
 
     @Transactional(readOnly = true)
@@ -80,29 +88,27 @@ public class ProjectService {
     @Transactional(readOnly = true)
     public List<ProjectSummaryResponse> getProjects() {
 
-        AppUser user = (AppUser) org.springframework.security.core.context.SecurityContextHolder
+        AppUser user = (AppUser) SecurityContextHolder
                 .getContext()
                 .getAuthentication()
                 .getPrincipal();
 
-        List<Project> projects;
+        List<ProjectStepSummaryRow> rows;
 
         if ("ADMIN".equalsIgnoreCase(user.getRole()) ||
                 "SUPERVISOR".equalsIgnoreCase(user.getRole())) {
 
-            projects = projectRepository.findAll();
+            rows = projectRepository.findAllProjectStepSummaryRows();
 
         } else if ("PM".equalsIgnoreCase(user.getRole())) {
 
-            projects = projectRepository.findByOwner_Id(user.getId());
+            rows = projectRepository.findProjectStepSummaryRowsByOwnerId(user.getId());
 
         } else {
-            throw new com.glassgang.pmworkflow.common.exception.ForbiddenException("Unknown role");
+            throw new ForbiddenException("Unknown role");
         }
 
-        return projects.stream()
-                .map(projectMapper::toSummary)
-                .toList();
+        return buildProjectSummaries(rows);
     }
 
     @Transactional
@@ -155,8 +161,7 @@ public class ProjectService {
                 "PROJECT",
                 savedProject.getId(),
                 null,
-                "name=" + savedProject.getName()
-        );
+                "name=" + savedProject.getName());
 
         List<ProjectStep> projectSteps = template.getSteps().stream()
                 .sorted(Comparator.comparing(WorkflowTemplateStep::getOrderIndex))
@@ -190,8 +195,7 @@ public class ProjectService {
                             substep.setIsDone(false);
                             substep.setCreatedAt(LocalDateTime.now());
                             return substep;
-                        })
-                )
+                        }))
                 .toList();
 
         projectSubstepRepository.saveAll(projectSubsteps);
@@ -223,8 +227,7 @@ public class ProjectService {
                 "SUBSTEP",
                 substep.getId(),
                 "isDone=" + oldValue,
-                "isDone=" + substep.getIsDone()
-        );
+                "isDone=" + substep.getIsDone());
 
         UUID projectId = project.getId();
 
@@ -289,8 +292,7 @@ public class ProjectService {
                 "STEP",
                 step.getId(),
                 "deadline=" + oldDeadline,
-                "deadline=" + step.getDeadline()
-        );
+                "deadline=" + step.getDeadline());
 
         UUID projectId = project.getId();
 
@@ -328,8 +330,7 @@ public class ProjectService {
                 "PROJECT",
                 project.getId(),
                 "name=" + oldName,
-                "name=" + newName
-        );
+                "name=" + newName);
 
         entityManager.flush();
         entityManager.clear();
@@ -349,5 +350,50 @@ public class ProjectService {
 
         entityManager.flush();
         entityManager.clear();
+    }
+
+    private List<ProjectSummaryResponse> buildProjectSummaries(List<ProjectStepSummaryRow> rows) {
+
+        Map<UUID, ProjectSummaryResponse> projectMap = new LinkedHashMap<>();
+        Map<UUID, List<ComputedStatus>> projectStepStatuses = new LinkedHashMap<>();
+
+        for (ProjectStepSummaryRow row : rows) {
+
+            ProjectSummaryResponse projectDto = projectMap.computeIfAbsent(row.getProjectId(), projectId -> {
+                ProjectSummaryResponse dto = new ProjectSummaryResponse();
+                dto.setId(row.getProjectId());
+                dto.setName(row.getProjectName());
+                dto.setProjectDeadline(row.getProjectDeadline());
+                dto.setSteps(new ArrayList<>());
+                return dto;
+            });
+
+            ComputedStatus stepStatus = projectStatusService.computeStepStatusFromCounts(
+                    row.getStepDeadline(),
+                    row.getTotalSubsteps(),
+                    row.getDoneSubsteps());
+
+            ProjectStepSummaryResponse stepDto = new ProjectStepSummaryResponse();
+            stepDto.setId(row.getStepId());
+            stepDto.setName(row.getStepName());
+            stepDto.setOrderIndex(row.getStepOrderIndex());
+            stepDto.setDeadline(row.getStepDeadline());
+            stepDto.setStatus(stepStatus);
+
+            projectDto.getSteps().add(stepDto);
+
+            projectStepStatuses
+                    .computeIfAbsent(row.getProjectId(), projectId -> new ArrayList<>())
+                    .add(stepStatus);
+        }
+
+        projectMap.forEach((projectId, projectDto) -> {
+            projectDto.setStatus(
+                    projectStatusService.computeProjectStatusFromStepStatuses(
+                            projectDto.getProjectDeadline(),
+                            projectStepStatuses.get(projectId)));
+        });
+
+        return new ArrayList<>(projectMap.values());
     }
 }

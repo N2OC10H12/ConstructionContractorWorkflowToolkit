@@ -7,6 +7,7 @@ import com.glassgang.pmworkflow.project.entity.ProjectSubstep;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Service
 public class ProjectStatusService {
@@ -72,4 +73,44 @@ public class ProjectStatusService {
         return project.getSteps().stream()
                 .allMatch(step -> step.getDeadline() != null);
     }
+
+    public ComputedStatus computeStepStatusFromCounts(
+        LocalDate deadline,
+        long totalSubsteps,
+        long doneSubsteps
+) {
+    boolean allDone = totalSubsteps > 0 && doneSubsteps == totalSubsteps;
+
+    if (allDone) {
+        return ComputedStatus.GREEN;
+    }
+
+    if (deadline != null && deadline.isBefore(LocalDate.now())) {
+        return ComputedStatus.RED;
+    }
+
+    return ComputedStatus.NEUTRAL;
+}
+
+public ComputedStatus computeProjectStatusFromStepStatuses(
+        LocalDate projectDeadline,
+        List<ComputedStatus> stepStatuses
+) {
+    if (stepStatuses == null || stepStatuses.isEmpty()) {
+        return ComputedStatus.NEUTRAL;
+    }
+
+    boolean allDone = stepStatuses.stream()
+            .allMatch(status -> status == ComputedStatus.GREEN);
+
+    if (allDone) {
+        return ComputedStatus.GREEN;
+    }
+
+    if (projectDeadline != null && projectDeadline.isBefore(LocalDate.now())) {
+        return ComputedStatus.RED;
+    }
+
+    return ComputedStatus.NEUTRAL;
+}
 }

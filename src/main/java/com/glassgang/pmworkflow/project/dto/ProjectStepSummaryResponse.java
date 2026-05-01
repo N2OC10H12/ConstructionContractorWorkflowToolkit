@@ -6,16 +6,14 @@ import lombok.Setter;
 
 import java.time.LocalDate;
 import java.util.UUID;
-import java.util.List;
 
 @Getter
 @Setter
-public class ProjectSummaryResponse {
+public class ProjectStepSummaryResponse {
 
     private UUID id;
     private String name;
+    private Integer orderIndex;
+    private LocalDate deadline;
     private ComputedStatus status;
-    private LocalDate projectDeadline;
-
-    private List<ProjectStepSummaryResponse> steps;
 }

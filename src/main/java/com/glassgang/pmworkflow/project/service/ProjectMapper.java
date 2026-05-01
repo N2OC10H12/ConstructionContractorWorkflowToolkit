@@ -70,17 +70,28 @@ public class ProjectMapper {
 
     public ProjectSummaryResponse toSummary(Project project) {
         ProjectSummaryResponse dto = new ProjectSummaryResponse();
+
         dto.setId(project.getId());
         dto.setName(project.getName());
         dto.setProjectDeadline(project.getProjectDeadline());
+        dto.setStatus(statusService.computeProjectStatus(project));
 
-        // SAFE STATUS (no steps access)
-        if (project.getProjectDeadline() != null &&
-                project.getProjectDeadline().isBefore(LocalDate.now())) {
-            dto.setStatus(ComputedStatus.RED);
-        } else {
-            dto.setStatus(ComputedStatus.NEUTRAL);
-        }
+        List<ProjectStepSummaryResponse> steps = project.getSteps().stream()
+                .sorted((a, b) -> Integer.compare(a.getOrderIndex(), b.getOrderIndex()))
+                .map(step -> {
+                    ProjectStepSummaryResponse stepDto = new ProjectStepSummaryResponse();
+
+                    stepDto.setId(step.getId());
+                    stepDto.setName(step.getName());
+                    stepDto.setOrderIndex(step.getOrderIndex());
+                    stepDto.setDeadline(step.getDeadline());
+                    stepDto.setStatus(statusService.computeStepStatus(step));
+
+                    return stepDto;
+                })
+                .toList();
+
+        dto.setSteps(steps);
 
         return dto;
     }
