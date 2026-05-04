@@ -2,7 +2,6 @@ package com.glassgang.pmworkflow.project.service;
 
 import com.glassgang.pmworkflow.audit.service.AuditService;
 import com.glassgang.pmworkflow.project.repository.projection.ProjectSummaryFlatRow;
-import com.glassgang.pmworkflow.project.repository.projection.ProjectStepSummaryRow;
 import com.glassgang.pmworkflow.project.dto.RenameProjectRequest;
 import com.glassgang.pmworkflow.common.exception.BadRequestException;
 import com.glassgang.pmworkflow.common.exception.ForbiddenException;
@@ -101,21 +100,23 @@ public class ProjectService {
     @Transactional(readOnly = true)
     public ProjectDetailsResponse getProject(UUID projectId) {
 
-        Project project = projectRepository.findWithStepsById(projectId)
+        entityManager.clear();
+
+        Project project = projectRepository.findFreshById(projectId)
                 .orElseThrow(() -> new NotFoundException("Project not found"));
 
         projectAccessService.requireProjectViewAccess(project);
 
-        // force substeps load (you already do this, keep it)
-        project.getSteps().forEach(step -> step.getSubsteps().size());
+        List<ProjectStep> steps = projectStepRepository.findByProject(project);
+        project.setSteps(steps);
 
-        // collect substep IDs
-        List<UUID> substepIds = project.getSteps().stream()
+        steps.forEach(step -> step.getSubsteps().size());
+
+        List<UUID> substepIds = steps.stream()
                 .flatMap(step -> step.getSubsteps().stream())
                 .map(ProjectSubstep::getId)
                 .toList();
 
-        // fetch flags in bulk
         Set<UUID> noteSubstepIds = new HashSet<>(
                 substepNoteRepository.findSubstepIdsWithNotes(substepIds));
 

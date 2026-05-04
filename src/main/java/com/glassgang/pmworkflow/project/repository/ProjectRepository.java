@@ -23,7 +23,9 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
     @Query("select p from Project p where p.id = :id")
     Optional<Project> findWithStepsById(@Param("id") UUID id);
 
-    // --- NEW (SAFE FOR SUMMARY) ---
+    @Query("select p from Project p where p.id = :id")
+    Optional<Project> findFreshById(@Param("id") UUID id);
+
     @EntityGraph(attributePaths = { "steps" })
     @Query("select distinct p from Project p")
     List<Project> findAllWithSteps();
