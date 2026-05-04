@@ -64,12 +64,24 @@ public class ProjectStatusService {
     }
 
     public boolean isPlanningComplete(Project project) {
+
         if (project.getSteps() == null || project.getSteps().isEmpty()) {
             return false;
         }
 
-        return project.getSteps().stream()
+        boolean allStepsHaveDeadlines = project.getSteps().stream()
                 .allMatch(step -> step.getDeadline() != null);
+
+        if (allStepsHaveDeadlines) {
+            return true;
+        }
+
+        if (project.getPlanningDeadline() != null &&
+                project.getPlanningDeadline().isBefore(LocalDate.now())) {
+            return true;
+        }
+
+        return false;
     }
 
     public ComputedStatus computeStepStatusFromCounts(
