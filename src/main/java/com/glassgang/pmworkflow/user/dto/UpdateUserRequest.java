@@ -1,10 +1,9 @@
 package com.glassgang.pmworkflow.user.dto;
 
-public class CreateUserRequest {
+public class UpdateUserRequest {
 
     private String username;
     private String displayName;
-    private String password;
     private String role;
 
     public String getUsername() {
@@ -21,14 +20,6 @@ public class CreateUserRequest {
 
     public void setDisplayName(String displayName) {
         this.displayName = displayName;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
     }
 
     public String getRole() {

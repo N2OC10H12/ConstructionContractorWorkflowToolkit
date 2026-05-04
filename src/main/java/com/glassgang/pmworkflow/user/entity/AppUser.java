@@ -27,5 +27,6 @@ public class AppUser {
     @Column(name = "created_at", nullable = false)
     private java.time.LocalDateTime createdAt;
 
-    // getters/setters
+    @Column(name = "display_name", nullable = false, length = 150)
+    private String displayName;
 }

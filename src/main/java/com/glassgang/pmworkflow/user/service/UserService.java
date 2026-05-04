@@ -1,6 +1,9 @@
 package com.glassgang.pmworkflow.user.service;
 
 import com.glassgang.pmworkflow.common.exception.BadRequestException;
+import com.glassgang.pmworkflow.user.dto.UpdateUserRequest;
+import com.glassgang.pmworkflow.user.dto.ChangePasswordRequest;
+import com.glassgang.pmworkflow.user.dto.UpdateMyProfileRequest;
 import com.glassgang.pmworkflow.common.exception.ForbiddenException;
 import com.glassgang.pmworkflow.common.exception.NotFoundException;
 import com.glassgang.pmworkflow.common.util.CurrentUserUtil;
@@ -10,6 +13,7 @@ import com.glassgang.pmworkflow.user.dto.UserResponse;
 import com.glassgang.pmworkflow.user.entity.AppUser;
 import com.glassgang.pmworkflow.user.entity.Role;
 import com.glassgang.pmworkflow.user.repository.AppUserRepository;
+import com.glassgang.pmworkflow.user.dto.AdminResetPasswordRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -27,7 +31,12 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
 
     public UserResponse getCurrentUser() {
-        return toResponse(currentUserUtil.getCurrentUser());
+        UUID currentUserId = currentUserUtil.getCurrentUserId();
+
+        AppUser user = appUserRepository.findById(currentUserId)
+                .orElseThrow(() -> new NotFoundException("Current user not found"));
+
+        return toResponse(user);
     }
 
     public List<UserResponse> getAllUsers() {
@@ -67,14 +76,61 @@ public class UserService {
             throw new BadRequestException("Username already exists");
         }
 
+        String displayName = request.getDisplayName();
+
+        if (displayName == null || displayName.isBlank()) {
+            throw new BadRequestException("Display name is required");
+        }
+
+        displayName = displayName.trim();
+
+        if (displayName.length() > 150) {
+            throw new BadRequestException("Display name cannot exceed 150 characters");
+        }
+
         AppUser user = new AppUser();
         user.setId(UUID.randomUUID());
         user.setUsername(username);
+        user.setDisplayName(displayName); // ✅ NEW
         user.setPasswordHash(passwordEncoder.encode(password));
         user.setRole(role.name());
         user.setCreatedAt(LocalDateTime.now());
 
         return toResponse(appUserRepository.save(user));
+    }
+
+    public UserResponse updateUser(UUID userId, UpdateUserRequest request) {
+        requireAdmin();
+
+        AppUser targetUser = appUserRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+
+        String username = normalizeUsername(request.getUsername());
+
+        String displayName = request.getDisplayName();
+        if (displayName == null || displayName.isBlank()) {
+            throw new BadRequestException("Display name is required");
+        }
+
+        displayName = displayName.trim();
+
+        if (displayName.length() > 150) {
+            throw new BadRequestException("Display name cannot exceed 150 characters");
+        }
+
+        Role role = parseRole(request.getRole());
+
+        appUserRepository.findByUsername(username)
+                .filter(existing -> !existing.getId().equals(userId))
+                .ifPresent(existing -> {
+                    throw new BadRequestException("Username already exists");
+                });
+
+        targetUser.setUsername(username);
+        targetUser.setDisplayName(displayName);
+        targetUser.setRole(role.name());
+
+        return toResponse(appUserRepository.save(targetUser));
     }
 
     public UserResponse updateUserRole(UUID userId, UpdateUserRoleRequest request) {
@@ -92,6 +148,75 @@ public class UserService {
         targetUser.setRole(newRole.name());
 
         return toResponse(appUserRepository.save(targetUser));
+    }
+
+    public UserResponse updateMyProfile(UpdateMyProfileRequest request) {
+        UUID currentUserId = currentUserUtil.getCurrentUserId();
+
+        AppUser user = appUserRepository.findById(currentUserId)
+                .orElseThrow(() -> new NotFoundException("Current user not found"));
+
+        String displayName = request.getDisplayName();
+
+        if (displayName == null || displayName.isBlank()) {
+            throw new BadRequestException("Display name is required");
+        }
+
+        displayName = displayName.trim();
+
+        if (displayName.length() > 150) {
+            throw new BadRequestException("Display name cannot exceed 150 characters");
+        }
+
+        user.setDisplayName(displayName);
+
+        return toResponse(appUserRepository.save(user));
+    }
+
+    public void changeMyPassword(ChangePasswordRequest request) {
+        UUID currentUserId = currentUserUtil.getCurrentUserId();
+
+        AppUser user = appUserRepository.findById(currentUserId)
+                .orElseThrow(() -> new NotFoundException("Current user not found"));
+
+        if (request.getCurrentPassword() == null || request.getCurrentPassword().isBlank()) {
+            throw new BadRequestException("Current password is required");
+        }
+
+        if (request.getNewPassword() == null || request.getNewPassword().isBlank()) {
+            throw new BadRequestException("New password is required");
+        }
+
+        if (request.getNewPassword().length() < 4) {
+            throw new BadRequestException("New password must be at least 4 characters");
+        }
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
+            throw new BadRequestException("Current password is incorrect");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+
+        appUserRepository.save(user);
+    }
+
+    public void resetUserPassword(UUID userId, AdminResetPasswordRequest request) {
+        requireAdmin();
+
+        AppUser targetUser = appUserRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+
+        if (request.getNewPassword() == null || request.getNewPassword().isBlank()) {
+            throw new BadRequestException("New password is required");
+        }
+
+        if (request.getNewPassword().length() < 4) {
+            throw new BadRequestException("New password must be at least 4 characters");
+        }
+
+        targetUser.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+
+        appUserRepository.save(targetUser);
     }
 
     private void requireAdmin() {
@@ -120,8 +245,8 @@ public class UserService {
         return new UserResponse(
                 user.getId(),
                 user.getUsername(),
+                user.getDisplayName(),
                 user.getRole(),
-                user.getCreatedAt()
-        );
+                user.getCreatedAt());
     }
 }

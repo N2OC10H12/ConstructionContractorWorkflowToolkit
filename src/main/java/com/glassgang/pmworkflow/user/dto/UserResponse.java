@@ -7,15 +7,17 @@ public class UserResponse {
 
     private UUID id;
     private String username;
+    private String displayName;
     private String role;
     private LocalDateTime createdAt;
 
     public UserResponse() {
     }
 
-    public UserResponse(UUID id, String username, String role, LocalDateTime createdAt) {
+    public UserResponse(UUID id, String username, String displayName, String role, LocalDateTime createdAt) {
         this.id = id;
         this.username = username;
+        this.displayName = displayName;
         this.role = role;
         this.createdAt = createdAt;
     }
@@ -34,6 +36,14 @@ public class UserResponse {
 
     public void setUsername(String username) {
         this.username = username;
+    }
+
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
     }
 
     public String getRole() {
