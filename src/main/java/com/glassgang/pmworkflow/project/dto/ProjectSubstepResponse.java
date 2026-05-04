@@ -15,8 +15,6 @@ public class ProjectSubstepResponse {
     private String name;
     private Integer orderIndex;
     private Boolean isDone;
-
-    // later: ComputedStatus status
-
-    // getters/setters
+    private boolean hasNotes;
+    private boolean hasFiles;
 }

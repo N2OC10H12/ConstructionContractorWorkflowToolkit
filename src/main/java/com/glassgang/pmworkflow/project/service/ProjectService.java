@@ -15,6 +15,8 @@ import com.glassgang.pmworkflow.user.repository.AppUserRepository;
 import com.glassgang.pmworkflow.workflow.entity.WorkflowTemplate;
 import com.glassgang.pmworkflow.workflow.repository.WorkflowTemplateRepository;
 import com.glassgang.pmworkflow.common.exception.NotFoundException;
+import com.glassgang.pmworkflow.file.repository.SubstepFileRepository;
+import com.glassgang.pmworkflow.note.repository.SubstepNoteRepository;
 import com.glassgang.pmworkflow.project.dto.ProjectDetailsResponse;
 import com.glassgang.pmworkflow.project.dto.ProjectOwnerResponse;
 import com.glassgang.pmworkflow.project.dto.ProjectStepSummaryResponse;
@@ -38,7 +40,9 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 import java.util.List;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.LinkedHashMap;
 import java.util.ArrayList;
@@ -57,6 +61,8 @@ public class ProjectService {
     private final ProjectAccessService projectAccessService;
     private final AuditService auditService;
     private final ProjectStatusService projectStatusService;
+    private final SubstepNoteRepository substepNoteRepository;
+    private final SubstepFileRepository substepFileRepository;
 
     public ProjectService(ProjectRepository projectRepository,
             ProjectMapper projectMapper,
@@ -66,7 +72,9 @@ public class ProjectService {
             ProjectSubstepRepository projectSubstepRepository,
             ProjectAccessService projectAccessService,
             AuditService auditService,
-            ProjectStatusService projectStatusService) {
+            ProjectStatusService projectStatusService,
+            SubstepNoteRepository substepNoteRepository,
+            SubstepFileRepository substepFileRepository) {
         this.projectRepository = projectRepository;
         this.projectMapper = projectMapper;
         this.workflowTemplateRepository = workflowTemplateRepository;
@@ -76,16 +84,45 @@ public class ProjectService {
         this.projectAccessService = projectAccessService;
         this.auditService = auditService;
         this.projectStatusService = projectStatusService;
+        this.substepNoteRepository = substepNoteRepository;
+        this.substepFileRepository = substepFileRepository;
     }
+
+    // @Transactional(readOnly = true)
+    // public ProjectDetailsResponse getProject(UUID projectId) {
+    // Project project = projectRepository.findWithStepsById(projectId)
+    // .orElseThrow(() -> new NotFoundException("Project not found"));
+    // projectAccessService.requireProjectViewAccess(project);
+    // project.getSteps().forEach(step -> step.getSubsteps().size());
+
+    // return projectMapper.toDetails(project);
+    // }
 
     @Transactional(readOnly = true)
     public ProjectDetailsResponse getProject(UUID projectId) {
+
         Project project = projectRepository.findWithStepsById(projectId)
                 .orElseThrow(() -> new NotFoundException("Project not found"));
+
         projectAccessService.requireProjectViewAccess(project);
+
+        // force substeps load (you already do this, keep it)
         project.getSteps().forEach(step -> step.getSubsteps().size());
 
-        return projectMapper.toDetails(project);
+        // collect substep IDs
+        List<UUID> substepIds = project.getSteps().stream()
+                .flatMap(step -> step.getSubsteps().stream())
+                .map(ProjectSubstep::getId)
+                .toList();
+
+        // fetch flags in bulk
+        Set<UUID> noteSubstepIds = new HashSet<>(
+                substepNoteRepository.findSubstepIdsWithNotes(substepIds));
+
+        Set<UUID> fileSubstepIds = new HashSet<>(
+                substepFileRepository.findSubstepIdsWithFiles(substepIds));
+
+        return projectMapper.toDetails(project, noteSubstepIds, fileSubstepIds);
     }
 
     @Transactional(readOnly = true)
@@ -353,51 +390,6 @@ public class ProjectService {
 
         entityManager.flush();
         entityManager.clear();
-    }
-
-    private List<ProjectSummaryResponse> buildProjectSummaries(List<ProjectStepSummaryRow> rows) {
-
-        Map<UUID, ProjectSummaryResponse> projectMap = new LinkedHashMap<>();
-        Map<UUID, List<ComputedStatus>> projectStepStatuses = new LinkedHashMap<>();
-
-        for (ProjectStepSummaryRow row : rows) {
-
-            ProjectSummaryResponse projectDto = projectMap.computeIfAbsent(row.getProjectId(), projectId -> {
-                ProjectSummaryResponse dto = new ProjectSummaryResponse();
-                dto.setId(row.getProjectId());
-                dto.setName(row.getProjectName());
-                dto.setProjectDeadline(row.getProjectDeadline());
-                dto.setSteps(new ArrayList<>());
-                return dto;
-            });
-
-            ComputedStatus stepStatus = projectStatusService.computeStepStatusFromCounts(
-                    row.getStepDeadline(),
-                    row.getTotalSubsteps(),
-                    row.getDoneSubsteps());
-
-            ProjectStepSummaryResponse stepDto = new ProjectStepSummaryResponse();
-            stepDto.setId(row.getStepId());
-            stepDto.setName(row.getStepName());
-            stepDto.setOrderIndex(row.getStepOrderIndex());
-            stepDto.setDeadline(row.getStepDeadline());
-            stepDto.setStatus(stepStatus);
-
-            projectDto.getSteps().add(stepDto);
-
-            projectStepStatuses
-                    .computeIfAbsent(row.getProjectId(), projectId -> new ArrayList<>())
-                    .add(stepStatus);
-        }
-
-        projectMap.forEach((projectId, projectDto) -> {
-            projectDto.setStatus(
-                    projectStatusService.computeProjectStatusFromStepStatuses(
-                            projectDto.getProjectDeadline(),
-                            projectStepStatuses.get(projectId)));
-        });
-
-        return new ArrayList<>(projectMap.values());
     }
 
     private List<ProjectSummaryResponse> buildProjectSummariesFromFlatRows(List<ProjectSummaryFlatRow> rows) {
