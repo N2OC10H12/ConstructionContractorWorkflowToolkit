@@ -17,7 +17,9 @@ public class CorsConfig {
 
         config.setAllowedOrigins(List.of(
                 "http://localhost:5173",
-                "http://127.0.0.1:5173"
+                "http://127.0.0.1:5173",
+                "http://192.168.0.19:5173",
+                "http://pm-dashboard.glassgang.com:5173"
         ));
 
         config.setAllowedMethods(List.of(

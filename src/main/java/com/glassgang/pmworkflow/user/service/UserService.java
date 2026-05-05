@@ -14,6 +14,7 @@ import com.glassgang.pmworkflow.user.entity.AppUser;
 import com.glassgang.pmworkflow.user.entity.Role;
 import com.glassgang.pmworkflow.user.repository.AppUserRepository;
 import com.glassgang.pmworkflow.user.dto.AdminResetPasswordRequest;
+import com.glassgang.pmworkflow.project.repository.ProjectRepository;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -31,6 +32,7 @@ public class UserService {
     private final AppUserRepository appUserRepository;
     private final CurrentUserUtil currentUserUtil;
     private final PasswordEncoder passwordEncoder;
+    private final ProjectRepository projectRepository;
 
     public UserResponse getCurrentUser() {
         UUID currentUserId = currentUserUtil.getCurrentUserId();
@@ -109,7 +111,11 @@ public class UserService {
         UUID currentUserId = currentUserUtil.getCurrentUserId();
 
         if (user.getId().equals(currentUserId)) {
-            throw new BadRequestException("Admin cannot delete own user account");
+            throw new BadRequestException("You cannot delete your own account");
+        }
+
+        if (projectRepository.existsByOwner_Id(userId)) {
+            throw new BadRequestException("Cannot delete user because they own one or more projects");
         }
 
         appUserRepository.delete(user);
