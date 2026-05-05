@@ -3,6 +3,7 @@ package com.glassgang.pmworkflow.project.dto;
 import com.glassgang.pmworkflow.project.entity.ComputedStatus;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import lombok.Getter;
@@ -17,6 +18,7 @@ public class ProjectDetailsResponse {
     private String name;
     private LocalDate planningDeadline;
     private LocalDate projectDeadline;
+    private LocalDateTime createdAt;
     private Boolean planningComplete;
     private List<ProjectStepResponse> steps;
-}
+    }

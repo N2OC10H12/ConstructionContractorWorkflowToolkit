@@ -11,7 +11,9 @@ import com.glassgang.pmworkflow.user.dto.UpdateUserRequest;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
 import java.util.UUID;
@@ -73,5 +75,12 @@ public class UserController {
             @RequestBody AdminResetPasswordRequest request) {
         userService.resetUserPassword(userId, request);
         return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{userId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteUser(@PathVariable UUID userId) {
+        userService.deleteUser(userId);
     }
 }

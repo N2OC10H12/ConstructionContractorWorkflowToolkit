@@ -31,6 +31,7 @@ public class ProjectMapper {
         dto.setPlanningComplete(statusService.isPlanningComplete(project));
         dto.setProjectDeadline(project.getProjectDeadline());
         dto.setPlanningDeadline(project.getPlanningDeadline());
+        dto.setCreatedAt(project.getCreatedAt());
 
         List<ProjectStepResponse> steps = project.getSteps().stream()
                 .sorted((a, b) -> Integer.compare(a.getOrderIndex(), b.getOrderIndex()))

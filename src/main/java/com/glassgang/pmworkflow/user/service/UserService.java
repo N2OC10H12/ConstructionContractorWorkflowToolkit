@@ -14,9 +14,11 @@ import com.glassgang.pmworkflow.user.entity.AppUser;
 import com.glassgang.pmworkflow.user.entity.Role;
 import com.glassgang.pmworkflow.user.repository.AppUserRepository;
 import com.glassgang.pmworkflow.user.dto.AdminResetPasswordRequest;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -97,6 +99,20 @@ public class UserService {
         user.setCreatedAt(LocalDateTime.now());
 
         return toResponse(appUserRepository.save(user));
+    }
+
+    @Transactional
+    public void deleteUser(UUID userId) {
+        AppUser user = appUserRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+
+        UUID currentUserId = currentUserUtil.getCurrentUserId();
+
+        if (user.getId().equals(currentUserId)) {
+            throw new BadRequestException("Admin cannot delete own user account");
+        }
+
+        appUserRepository.delete(user);
     }
 
     public UserResponse updateUser(UUID userId, UpdateUserRequest request) {
