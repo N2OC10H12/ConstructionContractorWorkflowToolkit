@@ -32,12 +32,16 @@ public class ApiExceptionHandler {
         return build(HttpStatus.UNAUTHORIZED, "Unauthorized");
     }
 
+    @ExceptionHandler(BusinessRuleException.class)
+    public ResponseEntity<ApiErrorResponse> handleBusinessRule(BusinessRuleException ex) {
+        return build(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
     private ResponseEntity<ApiErrorResponse> build(HttpStatus status, String message) {
         return ResponseEntity.status(status)
                 .body(new ApiErrorResponse(
                         LocalDateTime.now(),
                         status.value(),
-                        message
-                ));
+                        message));
     }
 }

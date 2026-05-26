@@ -27,8 +27,7 @@ import java.util.UUID;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private static final String SECRET =
-            "pmworkflow-local-dev-secret-key-must-be-at-least-32-bytes-long";
+    private static final String SECRET = "pmworkflow-local-dev-secret-key-must-be-at-least-32-bytes-long";
 
     private final ObjectMapper objectMapper;
 
@@ -42,8 +41,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain)
+            HttpServletResponse response,
+            FilterChain filterChain)
             throws ServletException, IOException {
 
         String authHeader = request.getHeader("Authorization");
@@ -81,21 +80,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             user.setUsername(username);
             user.setRole(role);
 
-            UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(
-                            user,
-                            null,
-                            Collections.emptyList()
-                    );
+            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                    user,
+                    null,
+                    Collections.emptyList());
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
-
-            filterChain.doFilter(request, response);
 
         } catch (Exception ex) {
             SecurityContextHolder.clearContext();
             writeUnauthorized(response, "Invalid or expired token");
+            return;
         }
+
+        filterChain.doFilter(request, response);
     }
 
     private void writeUnauthorized(HttpServletResponse response, String message) throws IOException {
@@ -105,8 +103,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         ApiErrorResponse body = new ApiErrorResponse(
                 LocalDateTime.now(),
                 HttpStatus.UNAUTHORIZED.value(),
-                message
-        );
+                message);
 
         response.getWriter().write(objectMapper.writeValueAsString(body));
     }

@@ -3,6 +3,7 @@ package com.glassgang.pmworkflow.estimate.controller;
 import com.glassgang.pmworkflow.estimate.dto.BidResponse;
 import com.glassgang.pmworkflow.estimate.dto.BidRevisionResponse;
 import com.glassgang.pmworkflow.estimate.dto.CreateBidRequest;
+import com.glassgang.pmworkflow.estimate.dto.CreateBidRevisionRequest;
 import com.glassgang.pmworkflow.estimate.service.BidService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
@@ -38,5 +39,32 @@ public class BidController {
     @GetMapping("/{bidId}/revisions")
     public List<BidRevisionResponse> getBidRevisions(@PathVariable UUID bidId) {
         return bidService.getBidRevisions(bidId);
+    }
+
+    @PostMapping("/{bidId}/revisions")
+    public BidRevisionResponse createRevision(
+            @PathVariable UUID bidId,
+            @Valid @RequestBody CreateBidRevisionRequest request) {
+
+        return bidService.createRevision(bidId, request);
+    }
+
+    @PostMapping("/revisions/{bidRevisionId}/send")
+    public BidRevisionResponse sendRevision(
+            @PathVariable UUID bidRevisionId) {
+
+        return bidService.sendRevision(bidRevisionId);
+    }
+
+    @PostMapping("/revisions/{bidRevisionId}/award")
+    public BidRevisionResponse awardRevision(
+            @PathVariable UUID bidRevisionId) {
+
+        return bidService.awardRevision(bidRevisionId);
+    }
+
+    @PostMapping("/{bidId}/lose")
+    public BidResponse loseBid(@PathVariable UUID bidId) {
+        return bidService.loseBid(bidId);
     }
 }
