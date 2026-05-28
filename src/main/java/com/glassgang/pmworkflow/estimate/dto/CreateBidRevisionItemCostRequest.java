@@ -35,8 +35,6 @@ public class CreateBidRevisionItemCostRequest {
     @DecimalMin(value = "0.0000", message = "unitPrice must be >= 0.0000")
     private BigDecimal unitPrice;
 
-    private Boolean isTaxable;
-
     @NotNull(message = "showCustomer is required")
     private Boolean showCustomer;
 

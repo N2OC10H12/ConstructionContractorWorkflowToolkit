@@ -4,6 +4,7 @@ import com.glassgang.pmworkflow.estimate.entity.CostRate;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 public interface CostRateRepository extends JpaRepository<CostRate, UUID> {
@@ -11,4 +12,6 @@ public interface CostRateRepository extends JpaRepository<CostRate, UUID> {
     Optional<CostRate> findByCostRateIdAndIsDeletedFalseAndIsActiveTrue(
             UUID costRateId
     );
+
+    List<CostRate> findByIsDeletedFalseOrderByCodeAsc();
 }

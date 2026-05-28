@@ -39,7 +39,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.glassgang.pmworkflow.common.exception.*;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import java.util.List;
@@ -58,6 +57,7 @@ public class BidService {
     private final CostRateRepository costRateRepository;
     private final ItemTypeRepository itemTypeRepository;
     private final TaxRateRepository taxRateRepository;
+    private final PricingService pricingService;
 
     public BidService(
             BidRepository bidRepository,
@@ -70,7 +70,8 @@ public class BidService {
             BidNumberService bidNumberService,
             BidMapper bidMapper,
             ItemTypeRepository itemTypeRepository,
-            TaxRateRepository taxRateRepository) {
+            TaxRateRepository taxRateRepository,
+            PricingService pricingService) {
         this.bidRepository = bidRepository;
         this.bidRevisionRepository = bidRevisionRepository;
         this.bidRevisionItemRepository = bidRevisionItemRepository;
@@ -82,6 +83,7 @@ public class BidService {
         this.bidMapper = bidMapper;
         this.itemTypeRepository = itemTypeRepository;
         this.taxRateRepository = taxRateRepository;
+        this.pricingService = pricingService;
     }
 
     @Transactional
@@ -195,112 +197,9 @@ public class BidService {
 
         BidRevision savedRevision = bidRevisionRepository.save(newRevision);
 
-        List<BidRevisionItem> sourceItems = bidRevisionItemRepository
-                .findByBidRevision_BidRevisionIdAndIsDeletedFalseOrderByDisplayOrderAsc(
-                        sourceRevision.getBidRevisionId());
+        cloneRevisionItems(sourceRevision, savedRevision, now);
 
-        for (BidRevisionItem sourceItem : sourceItems) {
-            BidRevisionItem clonedItem = new BidRevisionItem();
-
-            clonedItem.setBidRevisionItemId(UUID.randomUUID());
-            clonedItem.setBidRevision(savedRevision);
-
-            clonedItem.setLineNumber(sourceItem.getLineNumber());
-            clonedItem.setDisplayOrder(sourceItem.getDisplayOrder());
-            clonedItem.setGroupName(sourceItem.getGroupName());
-            clonedItem.setDescription(sourceItem.getDescription());
-            clonedItem.setQuantity(sourceItem.getQuantity());
-            clonedItem.setUnitOfMeasure(sourceItem.getUnitOfMeasure());
-
-            clonedItem.setUnitCost(sourceItem.getUnitCost());
-            clonedItem.setUnitPrice(sourceItem.getUnitPrice());
-            clonedItem.setTotalCost(sourceItem.getTotalCost());
-            clonedItem.setTotalPrice(sourceItem.getTotalPrice());
-            clonedItem.setMarkupPercent(sourceItem.getMarkupPercent());
-            clonedItem.setGpmPercent(sourceItem.getGpmPercent());
-
-            clonedItem.setIsTaxable(sourceItem.getIsTaxable());
-            clonedItem.setTaxAmount(sourceItem.getTaxAmount());
-            clonedItem.setPriceWithTax(sourceItem.getPriceWithTax());
-
-            clonedItem.setItemType(sourceItem.getItemType());
-            clonedItem.setTaxRate(sourceItem.getTaxRate());
-            clonedItem.setTaxRateSnapshotCode(sourceItem.getTaxRateSnapshotCode());
-            clonedItem.setTaxRateSnapshotName(sourceItem.getTaxRateSnapshotName());
-            clonedItem.setTaxRateSnapshotPercent(sourceItem.getTaxRateSnapshotPercent());
-
-            clonedItem.setCustomerDisplayMode(
-                    sourceItem.getCustomerDisplayMode() != null
-                            ? sourceItem.getCustomerDisplayMode()
-                            : CustomerDisplayMode.ITEM_TOTAL_ONLY);
-
-            clonedItem.setIsOptional(sourceItem.getIsOptional());
-            clonedItem.setShowCustomerRow(sourceItem.getShowCustomerRow());
-            clonedItem.setShowCustomerPrice(sourceItem.getShowCustomerPrice());
-            clonedItem.setInternalNote(sourceItem.getInternalNote());
-
-            clonedItem.setClonedFromItem(sourceItem);
-
-            clonedItem.setCreatedAtUtc(now);
-            clonedItem.setUpdatedAtUtc(now);
-            clonedItem.setIsDeleted(false);
-
-            BidRevisionItem savedClonedItem = bidRevisionItemRepository.save(clonedItem);
-
-            List<BidRevisionItemCost> sourceCosts = bidRevisionItemCostRepository
-                    .findByBidRevisionItem_BidRevisionItemIdAndIsDeletedFalseOrderByDisplayOrderAsc(
-                            sourceItem.getBidRevisionItemId());
-
-            for (BidRevisionItemCost sourceCost : sourceCosts) {
-                BidRevisionItemCost clonedCost = new BidRevisionItemCost();
-
-                clonedCost.setBidRevisionItemCostId(UUID.randomUUID());
-                clonedCost.setBidRevisionItem(savedClonedItem);
-
-                clonedCost.setCostElement(sourceCost.getCostElement());
-                clonedCost.setCostRate(sourceCost.getCostRate());
-
-                clonedCost.setLineNumber(sourceCost.getLineNumber());
-                clonedCost.setDisplayOrder(sourceCost.getDisplayOrder());
-
-                clonedCost.setQuantity(sourceCost.getQuantity());
-                clonedCost.setUnitOfMeasure(sourceCost.getUnitOfMeasure());
-
-                clonedCost.setRateSnapshot(sourceCost.getRateSnapshot());
-                clonedCost.setRateUnitSnapshot(sourceCost.getRateUnitSnapshot());
-
-                clonedCost.setUnitCost(sourceCost.getUnitCost());
-                clonedCost.setUnitPrice(sourceCost.getUnitPrice());
-
-                clonedCost.setTotalCost(sourceCost.getTotalCost());
-                clonedCost.setTotalPrice(sourceCost.getTotalPrice());
-                clonedCost.setTaxAmount(BigDecimal.ZERO);
-                clonedCost.setPriceWithTax(sourceCost.getTotalPrice());
-
-                clonedCost.setMarkupPercent(sourceCost.getMarkupPercent());
-                clonedCost.setGpmPercent(sourceCost.getGpmPercent());
-
-                clonedCost.setIsTaxable(sourceCost.getIsTaxable());
-                clonedCost.setShowCustomer(sourceCost.getShowCustomer());
-                clonedCost.setIsOptional(sourceCost.getIsOptional());
-                clonedCost.setGroupName(sourceCost.getGroupName());
-                clonedCost.setInternalNote(sourceCost.getInternalNote());
-
-                clonedCost.setClonedFromItemCost(sourceCost);
-
-                clonedCost.setCreatedAtUtc(now);
-                clonedCost.setUpdatedAtUtc(now);
-                clonedCost.setIsDeleted(false);
-
-                bidRevisionItemCostRepository.save(clonedCost);
-            }
-
-            recalculateItemTotals(savedClonedItem);
-            savedClonedItem.setUpdatedAtUtc(now);
-            bidRevisionItemRepository.save(savedClonedItem);
-        }
-
-        recalculateRevisionTotals(savedRevision);
+        pricingService.recalculateRevisionTotals(savedRevision);
         savedRevision.setUpdatedAtUtc(now);
         bidRevisionRepository.save(savedRevision);
 
@@ -348,17 +247,7 @@ public class BidService {
                 .findByBidIdAndIsDeletedFalse(bidId)
                 .orElseThrow(() -> new NotFoundException("Bid not found"));
 
-        if (bid.getBidStatus() == BidStatus.AWARDED) {
-            throw new BusinessRuleException("Awarded bid cannot be revised");
-        }
-
-        if (bid.getBidStatus() == BidStatus.LOST) {
-            throw new BusinessRuleException("Lost bid cannot be revised");
-        }
-
-        if (bid.getBidStatus() == BidStatus.ARCHIVED) {
-            throw new BusinessRuleException("Archived bid cannot be revised");
-        }
+        ensureBidCanBeRevised(bid);
 
         BidRevision currentRevision = bid.getCurrentRevision();
 
@@ -416,111 +305,9 @@ public class BidService {
 
         BidRevision savedRevision = bidRevisionRepository.save(revision);
 
-        List<BidRevisionItem> currentItems = bidRevisionItemRepository
-                .findByBidRevision_BidRevisionIdAndIsDeletedFalseOrderByDisplayOrderAsc(
-                        currentRevision.getBidRevisionId());
+        cloneRevisionItems(currentRevision, savedRevision, now);
 
-        for (BidRevisionItem currentItem : currentItems) {
-            BidRevisionItem clonedItem = new BidRevisionItem();
-
-            clonedItem.setBidRevisionItemId(UUID.randomUUID());
-            clonedItem.setBidRevision(savedRevision);
-
-            clonedItem.setLineNumber(currentItem.getLineNumber());
-            clonedItem.setDisplayOrder(currentItem.getDisplayOrder());
-            clonedItem.setGroupName(currentItem.getGroupName());
-            clonedItem.setDescription(currentItem.getDescription());
-            clonedItem.setQuantity(currentItem.getQuantity());
-            clonedItem.setUnitOfMeasure(currentItem.getUnitOfMeasure());
-
-            clonedItem.setUnitCost(currentItem.getUnitCost());
-            clonedItem.setUnitPrice(currentItem.getUnitPrice());
-            clonedItem.setTotalCost(currentItem.getTotalCost());
-            clonedItem.setTotalPrice(currentItem.getTotalPrice());
-            clonedItem.setMarkupPercent(currentItem.getMarkupPercent());
-            clonedItem.setGpmPercent(currentItem.getGpmPercent());
-
-            clonedItem.setIsTaxable(currentItem.getIsTaxable());
-            clonedItem.setTaxAmount(currentItem.getTaxAmount());
-            clonedItem.setPriceWithTax(currentItem.getPriceWithTax());
-
-            clonedItem.setItemType(currentItem.getItemType());
-            clonedItem.setTaxRate(currentItem.getTaxRate());
-            clonedItem.setTaxRateSnapshotCode(currentItem.getTaxRateSnapshotCode());
-            clonedItem.setTaxRateSnapshotName(currentItem.getTaxRateSnapshotName());
-            clonedItem.setTaxRateSnapshotPercent(currentItem.getTaxRateSnapshotPercent());
-            clonedItem.setCustomerDisplayMode(
-                    currentItem.getCustomerDisplayMode() != null
-                            ? currentItem.getCustomerDisplayMode()
-                            : CustomerDisplayMode.ITEM_TOTAL_ONLY);
-
-            clonedItem.setIsOptional(currentItem.getIsOptional());
-            clonedItem.setShowCustomerRow(currentItem.getShowCustomerRow());
-            clonedItem.setShowCustomerPrice(currentItem.getShowCustomerPrice());
-            clonedItem.setInternalNote(currentItem.getInternalNote());
-
-            clonedItem.setClonedFromItem(currentItem);
-
-            clonedItem.setCreatedAtUtc(now);
-            clonedItem.setUpdatedAtUtc(now);
-            clonedItem.setIsDeleted(false);
-
-            BidRevisionItem savedClonedItem = bidRevisionItemRepository.save(clonedItem);
-
-            List<BidRevisionItemCost> currentCosts = bidRevisionItemCostRepository
-                    .findByBidRevisionItem_BidRevisionItemIdAndIsDeletedFalseOrderByDisplayOrderAsc(
-                            currentItem.getBidRevisionItemId());
-
-            for (BidRevisionItemCost currentCost : currentCosts) {
-                BidRevisionItemCost clonedCost = new BidRevisionItemCost();
-
-                clonedCost.setBidRevisionItemCostId(UUID.randomUUID());
-                clonedCost.setBidRevisionItem(savedClonedItem);
-
-                clonedCost.setCostElement(currentCost.getCostElement());
-                clonedCost.setCostRate(currentCost.getCostRate());
-
-                clonedCost.setLineNumber(currentCost.getLineNumber());
-                clonedCost.setDisplayOrder(currentCost.getDisplayOrder());
-
-                clonedCost.setQuantity(currentCost.getQuantity());
-                clonedCost.setUnitOfMeasure(currentCost.getUnitOfMeasure());
-
-                clonedCost.setRateSnapshot(currentCost.getRateSnapshot());
-                clonedCost.setRateUnitSnapshot(currentCost.getRateUnitSnapshot());
-
-                clonedCost.setUnitCost(currentCost.getUnitCost());
-                clonedCost.setUnitPrice(currentCost.getUnitPrice());
-                clonedCost.setTotalCost(currentCost.getTotalCost());
-                clonedCost.setTotalPrice(currentCost.getTotalPrice());
-
-                clonedCost.setMarkupPercent(currentCost.getMarkupPercent());
-                clonedCost.setGpmPercent(currentCost.getGpmPercent());
-
-                clonedCost.setIsTaxable(currentCost.getIsTaxable());
-                clonedCost.setTaxAmount(currentCost.getTaxAmount());
-                clonedCost.setPriceWithTax(currentCost.getPriceWithTax());
-
-                clonedCost.setShowCustomer(currentCost.getShowCustomer());
-                clonedCost.setIsOptional(currentCost.getIsOptional());
-                clonedCost.setGroupName(currentCost.getGroupName());
-                clonedCost.setInternalNote(currentCost.getInternalNote());
-
-                clonedCost.setClonedFromItemCost(currentCost);
-
-                clonedCost.setCreatedAtUtc(now);
-                clonedCost.setUpdatedAtUtc(now);
-                clonedCost.setIsDeleted(false);
-
-                bidRevisionItemCostRepository.save(clonedCost);
-            }
-
-            recalculateItemTotals(savedClonedItem);
-            savedClonedItem.setUpdatedAtUtc(now);
-            bidRevisionItemRepository.save(savedClonedItem);
-        }
-
-        recalculateRevisionTotals(savedRevision);
+        pricingService.recalculateRevisionTotals(savedRevision);
         savedRevision.setUpdatedAtUtc(now);
         bidRevisionRepository.save(savedRevision);
 
@@ -542,17 +329,7 @@ public class BidService {
 
         Bid bid = revision.getBid();
 
-        if (bid.getBidStatus() == BidStatus.AWARDED) {
-            throw new BusinessRuleException("Awarded bid revision cannot be sent");
-        }
-
-        if (bid.getBidStatus() == BidStatus.LOST) {
-            throw new BusinessRuleException("Lost bid revision cannot be sent");
-        }
-
-        if (bid.getBidStatus() == BidStatus.ARCHIVED) {
-            throw new BusinessRuleException("Archived bid revision cannot be sent");
-        }
+        ensureCurrentRevisionCanBeSent(bid, revision);
 
         if (bid.getCurrentRevision() == null
                 || !bid.getCurrentRevision().getBidRevisionId().equals(bidRevisionId)) {
@@ -589,17 +366,7 @@ public class BidService {
 
         Bid bid = revision.getBid();
 
-        if (bid.getBidStatus() == BidStatus.AWARDED) {
-            throw new BusinessRuleException("Awarded bid revision cannot be awarded");
-        }
-
-        if (bid.getBidStatus() == BidStatus.LOST) {
-            throw new BusinessRuleException("Lost bid revision cannot be awarded");
-        }
-
-        if (bid.getBidStatus() == BidStatus.ARCHIVED) {
-            throw new BusinessRuleException("Archived bid revision cannot be awarded");
-        }
+        ensureCurrentRevisionCanBeAwarded(bid, revision);
 
         if (bid.getCurrentRevision() == null
                 || !bid.getCurrentRevision().getBidRevisionId().equals(bidRevisionId)) {
@@ -687,26 +454,8 @@ public class BidService {
 
         Bid bid = revision.getBid();
 
-        if (bid.getBidStatus() == BidStatus.AWARDED) {
-            throw new BusinessRuleException("Awarded bid revision cannot be changed");
-        }
-
-        if (bid.getBidStatus() == BidStatus.LOST) {
-            throw new BusinessRuleException("Lost bid revision cannot be changed");
-        }
-
-        if (bid.getBidStatus() == BidStatus.ARCHIVED) {
-            throw new BusinessRuleException("Archived bid revision cannot be changed");
-        }
-
-        if (bid.getCurrentRevision() == null
-                || !bid.getCurrentRevision().getBidRevisionId().equals(bidRevisionId)) {
-            throw new BusinessRuleException("Only current revision can be changed");
-        }
-
-        if (revision.getRevisionStatus() != RevisionStatus.DRAFT) {
-            throw new BusinessRuleException("Only DRAFT revisions can be changed");
-        }
+        ensureBidCanBeChanged(bid);
+        ensureCurrentRevisionCanBeChanged(bid, revision);
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -767,7 +516,7 @@ public class BidService {
 
         BidRevisionItem savedItem = bidRevisionItemRepository.save(item);
 
-        recalculateRevisionTotals(revision);
+        pricingService.recalculateRevisionTotals(revision);
 
         revision.setUpdatedAtUtc(now);
 
@@ -802,32 +551,10 @@ public class BidService {
         BidRevision revision = item.getBidRevision();
         Bid bid = revision.getBid();
 
-        if (bid.getBidStatus() == BidStatus.AWARDED) {
-            throw new BusinessRuleException("Awarded bid revision cannot be changed");
-        }
-
-        if (bid.getBidStatus() == BidStatus.LOST) {
-            throw new BusinessRuleException("Lost bid revision cannot be changed");
-        }
-
-        if (bid.getBidStatus() == BidStatus.ARCHIVED) {
-            throw new BusinessRuleException("Archived bid revision cannot be changed");
-        }
-
-        if (bid.getCurrentRevision() == null
-                || !bid.getCurrentRevision().getBidRevisionId().equals(revision.getBidRevisionId())) {
-            throw new BusinessRuleException("Only current revision can be changed");
-        }
-
-        if (revision.getRevisionStatus() != RevisionStatus.DRAFT) {
-            throw new BusinessRuleException("Only DRAFT revisions can be changed");
-        }
+        ensureBidCanBeChanged(bid);
+        ensureCurrentRevisionCanBeChanged(bid, revision);
 
         LocalDateTime now = LocalDateTime.now();
-
-        item.setIsDeleted(true);
-        item.setDeletedAtUtc(now);
-        item.setUpdatedAtUtc(now);
 
         bidRevisionItemRepository.save(item);
 
@@ -849,10 +576,8 @@ public class BidService {
 
         bidRevisionItemRepository.save(item);
 
-        recalculateRevisionTotals(revision);
+        pricingService.recalculateRevisionTotals(revision);
         revision.setUpdatedAtUtc(now);
-
-        bidRevisionRepository.save(revision);
 
         bidRevisionRepository.save(revision);
 
@@ -872,26 +597,8 @@ public class BidService {
         BidRevision revision = item.getBidRevision();
         Bid bid = revision.getBid();
 
-        if (bid.getBidStatus() == BidStatus.AWARDED) {
-            throw new BusinessRuleException("Awarded bid revision cannot be changed");
-        }
-
-        if (bid.getBidStatus() == BidStatus.LOST) {
-            throw new BusinessRuleException("Lost bid revision cannot be changed");
-        }
-
-        if (bid.getBidStatus() == BidStatus.ARCHIVED) {
-            throw new BusinessRuleException("Archived bid revision cannot be changed");
-        }
-
-        if (bid.getCurrentRevision() == null
-                || !bid.getCurrentRevision().getBidRevisionId().equals(revision.getBidRevisionId())) {
-            throw new BusinessRuleException("Only current revision can be changed");
-        }
-
-        if (revision.getRevisionStatus() != RevisionStatus.DRAFT) {
-            throw new BusinessRuleException("Only DRAFT revisions can be changed");
-        }
+        ensureBidCanBeChanged(bid);
+        ensureCurrentRevisionCanBeChanged(bid, revision);
 
         if (request.getGroupName() != null) {
             item.setGroupName(request.getGroupName());
@@ -931,7 +638,7 @@ public class BidService {
             item.setCustomerDisplayMode(request.getCustomerDisplayMode());
         }
 
-        recalculateItemTotals(item);
+        pricingService.recalculateItemTotals(item);
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -939,9 +646,9 @@ public class BidService {
 
         BidRevisionItem savedItem = bidRevisionItemRepository.save(item);
 
-        recalculateRevisionTotals(revision);
+        pricingService.recalculateRevisionTotals(revision);
 
-        revision.setTotalPrice(revision.getSubtotalPrice().add(revision.getTaxAmount()));
+        // revision.setTotalPrice(revision.getSubtotalPrice().add(revision.getTaxAmount()));
         revision.setUpdatedAtUtc(now);
 
         bidRevisionRepository.save(revision);
@@ -964,26 +671,8 @@ public class BidService {
         BidRevision revision = item.getBidRevision();
         Bid bid = revision.getBid();
 
-        if (bid.getBidStatus() == BidStatus.AWARDED) {
-            throw new BusinessRuleException("Awarded bid revision cannot be changed");
-        }
-
-        if (bid.getBidStatus() == BidStatus.LOST) {
-            throw new BusinessRuleException("Lost bid revision cannot be changed");
-        }
-
-        if (bid.getBidStatus() == BidStatus.ARCHIVED) {
-            throw new BusinessRuleException("Archived bid revision cannot be changed");
-        }
-
-        if (bid.getCurrentRevision() == null
-                || !bid.getCurrentRevision().getBidRevisionId().equals(revision.getBidRevisionId())) {
-            throw new BusinessRuleException("Only current revision can be changed");
-        }
-
-        if (revision.getRevisionStatus() != RevisionStatus.DRAFT) {
-            throw new BusinessRuleException("Only DRAFT revisions can be changed");
-        }
+        ensureBidCanBeChanged(bid);
+        ensureCurrentRevisionCanBeChanged(bid, revision);
 
         CostElement costElement = costElementRepository
                 .findByCostElementIdAndIsDeletedFalseAndIsActiveTrue(request.getCostElementId())
@@ -999,10 +688,13 @@ public class BidService {
 
         LocalDateTime now = LocalDateTime.now();
 
-        int existingCount = bidRevisionItemCostRepository
-                .countByBidRevisionItem_BidRevisionItemIdAndIsDeletedFalse(bidRevisionItemId);
+        int nextLineNumber = bidRevisionItemCostRepository
+                .findTopLineNumberByBidRevisionItemId(bidRevisionItemId)
+                .orElse(0) + 1;
 
-        int nextLineNumber = existingCount + 1;
+        int nextDisplayOrder = bidRevisionItemCostRepository
+                .findTopDisplayOrderByBidRevisionItemId(bidRevisionItemId)
+                .orElse(0) + 1;
 
         BidRevisionItemCost cost = new BidRevisionItemCost();
 
@@ -1012,7 +704,7 @@ public class BidService {
         cost.setCostRate(costRate);
 
         cost.setLineNumber(nextLineNumber);
-        cost.setDisplayOrder(nextLineNumber);
+        cost.setDisplayOrder(nextDisplayOrder);
 
         cost.setGroupName(request.getGroupName());
         cost.setQuantity(request.getQuantity());
@@ -1024,12 +716,15 @@ public class BidService {
         cost.setUnitCost(request.getUnitCost());
         cost.setUnitPrice(request.getUnitPrice());
 
-        recalculateItemCostTotals(cost);
+        pricingService.recalculateItemCostTotals(cost);
 
         cost.setMarkupPercent(null);
         cost.setGpmPercent(null);
 
-        cost.setIsTaxable(request.getIsTaxable());
+        // Legacy compatibility only.
+        // Cost-level tax is no longer part of active pricing.
+        // Item-level tax rate snapshot controls tax calculation.
+        cost.setIsTaxable(true);
 
         cost.setShowCustomer(request.getShowCustomer());
         cost.setIsOptional(request.getIsOptional());
@@ -1041,14 +736,13 @@ public class BidService {
 
         BidRevisionItemCost savedCost = bidRevisionItemCostRepository.save(cost);
 
-        recalculateItemTotals(item);
+        pricingService.recalculateItemTotals(item);
         item.setUpdatedAtUtc(now);
 
         bidRevisionItemRepository.save(item);
 
-        recalculateRevisionTotals(revision);
+        pricingService.recalculateRevisionTotals(revision);
         revision.setUpdatedAtUtc(now);
-        // ==============================================================================================================================
 
         bidRevisionRepository.save(revision);
 
@@ -1056,58 +750,6 @@ public class BidService {
         bidRepository.save(bid);
 
         return bidMapper.toBidRevisionItemCostResponse(savedCost);
-    }
-
-    private void recalculateItemTotals(BidRevisionItem item) {
-
-        List<BidRevisionItemCost> costs = bidRevisionItemCostRepository
-                .findByBidRevisionItem_BidRevisionItemIdAndIsDeletedFalseOrderByDisplayOrderAsc(
-                        item.getBidRevisionItemId());
-
-        BigDecimal totalCost = BigDecimal.ZERO;
-        BigDecimal totalPrice = BigDecimal.ZERO;
-
-        for (BidRevisionItemCost cost : costs) {
-            totalCost = totalCost.add(cost.getTotalCost());
-            totalPrice = totalPrice.add(cost.getTotalPrice());
-        }
-
-        BigDecimal taxRatePercent = item.getTaxRateSnapshotPercent() != null
-                ? item.getTaxRateSnapshotPercent()
-                : BigDecimal.ZERO;
-
-        BigDecimal taxAmount = totalPrice
-                .multiply(taxRatePercent)
-                .divide(new BigDecimal("100.0000"), 4, RoundingMode.HALF_UP);
-
-        item.setUnitCost(totalCost);
-        item.setUnitPrice(totalPrice);
-        item.setTotalCost(totalCost);
-        item.setTotalPrice(totalPrice);
-        item.setTaxAmount(taxAmount);
-        item.setPriceWithTax(totalPrice.add(taxAmount));
-    }
-
-    private void recalculateRevisionTotals(BidRevision revision) {
-
-        List<BidRevisionItem> items = bidRevisionItemRepository
-                .findByBidRevision_BidRevisionIdAndIsDeletedFalse(
-                        revision.getBidRevisionId());
-
-        BigDecimal subtotalCost = BigDecimal.ZERO;
-        BigDecimal subtotalPrice = BigDecimal.ZERO;
-        BigDecimal taxAmount = BigDecimal.ZERO;
-
-        for (BidRevisionItem item : items) {
-            subtotalCost = subtotalCost.add(item.getTotalCost());
-            subtotalPrice = subtotalPrice.add(item.getTotalPrice());
-            taxAmount = taxAmount.add(item.getTaxAmount());
-        }
-
-        revision.setSubtotalCost(subtotalCost);
-        revision.setSubtotalPrice(subtotalPrice);
-        revision.setTaxAmount(taxAmount);
-        revision.setTotalPrice(subtotalPrice.add(taxAmount));
     }
 
     public List<BidRevisionItemCostResponse> getItemCosts(UUID bidRevisionItemId) {
@@ -1137,26 +779,8 @@ public class BidService {
         BidRevision revision = item.getBidRevision();
         Bid bid = revision.getBid();
 
-        if (bid.getBidStatus() == BidStatus.AWARDED) {
-            throw new BusinessRuleException("Awarded bid revision cannot be changed");
-        }
-
-        if (bid.getBidStatus() == BidStatus.LOST) {
-            throw new BusinessRuleException("Lost bid revision cannot be changed");
-        }
-
-        if (bid.getBidStatus() == BidStatus.ARCHIVED) {
-            throw new BusinessRuleException("Archived bid revision cannot be changed");
-        }
-
-        if (bid.getCurrentRevision() == null
-                || !bid.getCurrentRevision().getBidRevisionId().equals(revision.getBidRevisionId())) {
-            throw new BusinessRuleException("Only current revision can be changed");
-        }
-
-        if (revision.getRevisionStatus() != RevisionStatus.DRAFT) {
-            throw new BusinessRuleException("Only DRAFT revisions can be changed");
-        }
+        ensureBidCanBeChanged(bid);
+        ensureCurrentRevisionCanBeChanged(bid, revision);
 
         if (request.getCostElementId() != null) {
 
@@ -1200,10 +824,6 @@ public class BidService {
             cost.setUnitPrice(request.getUnitPrice());
         }
 
-        if (request.getIsTaxable() != null) {
-            cost.setIsTaxable(request.getIsTaxable());
-        }
-
         if (request.getShowCustomer() != null) {
             cost.setShowCustomer(request.getShowCustomer());
         }
@@ -1216,7 +836,7 @@ public class BidService {
             cost.setInternalNote(request.getInternalNote());
         }
 
-        recalculateItemCostTotals(cost);
+        pricingService.recalculateItemCostTotals(cost);
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -1224,12 +844,12 @@ public class BidService {
 
         BidRevisionItemCost savedCost = bidRevisionItemCostRepository.save(cost);
 
-        recalculateItemTotals(item);
+        pricingService.recalculateItemTotals(item);
         item.setUpdatedAtUtc(now);
 
         bidRevisionItemRepository.save(item);
 
-        recalculateRevisionTotals(revision);
+        pricingService.recalculateRevisionTotals(revision);
         revision.setUpdatedAtUtc(now);
 
         bidRevisionRepository.save(revision);
@@ -1251,26 +871,8 @@ public class BidService {
         BidRevision revision = item.getBidRevision();
         Bid bid = revision.getBid();
 
-        if (bid.getBidStatus() == BidStatus.AWARDED) {
-            throw new BusinessRuleException("Awarded bid revision cannot be changed");
-        }
-
-        if (bid.getBidStatus() == BidStatus.LOST) {
-            throw new BusinessRuleException("Lost bid revision cannot be changed");
-        }
-
-        if (bid.getBidStatus() == BidStatus.ARCHIVED) {
-            throw new BusinessRuleException("Archived bid revision cannot be changed");
-        }
-
-        if (bid.getCurrentRevision() == null
-                || !bid.getCurrentRevision().getBidRevisionId().equals(revision.getBidRevisionId())) {
-            throw new BusinessRuleException("Only current revision can be changed");
-        }
-
-        if (revision.getRevisionStatus() != RevisionStatus.DRAFT) {
-            throw new BusinessRuleException("Only DRAFT revisions can be changed");
-        }
+        ensureBidCanBeChanged(bid);
+        ensureCurrentRevisionCanBeChanged(bid, revision);
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -1280,12 +882,12 @@ public class BidService {
 
         bidRevisionItemCostRepository.save(cost);
 
-        recalculateItemTotals(item);
+        pricingService.recalculateItemTotals(item);
         item.setUpdatedAtUtc(now);
 
         bidRevisionItemRepository.save(item);
 
-        recalculateRevisionTotals(revision);
+        pricingService.recalculateRevisionTotals(revision);
         revision.setUpdatedAtUtc(now);
 
         bidRevisionRepository.save(revision);
@@ -1311,13 +913,201 @@ public class BidService {
         item.setTaxRateSnapshotPercent(taxRate.getRatePercent());
     }
 
-    private void recalculateItemCostTotals(BidRevisionItemCost cost) {
-        BigDecimal totalCost = cost.getQuantity().multiply(cost.getUnitCost());
-        BigDecimal totalPrice = cost.getQuantity().multiply(cost.getUnitPrice());
+    private void ensureBidCanBeChanged(Bid bid) {
+        if (bid.getBidStatus() == BidStatus.AWARDED) {
+            throw new BusinessRuleException("Awarded bid revision cannot be changed");
+        }
 
-        cost.setTotalCost(totalCost);
-        cost.setTotalPrice(totalPrice);
-        cost.setTaxAmount(BigDecimal.ZERO);
-        cost.setPriceWithTax(totalPrice);
+        if (bid.getBidStatus() == BidStatus.LOST) {
+            throw new BusinessRuleException("Lost bid revision cannot be changed");
+        }
+
+        if (bid.getBidStatus() == BidStatus.ARCHIVED) {
+            throw new BusinessRuleException("Archived bid revision cannot be changed");
+        }
+    }
+
+    private void ensureCurrentRevisionCanBeChanged(Bid bid, BidRevision revision) {
+        if (bid.getCurrentRevision() == null
+                || !bid.getCurrentRevision().getBidRevisionId().equals(revision.getBidRevisionId())) {
+            throw new BusinessRuleException("Only current revision can be changed");
+        }
+
+        if (revision.getRevisionStatus() != RevisionStatus.DRAFT) {
+            throw new BusinessRuleException("Only DRAFT revisions can be changed");
+        }
+    }
+
+    private void ensureBidCanBeRevised(Bid bid) {
+        if (bid.getBidStatus() == BidStatus.AWARDED) {
+            throw new BusinessRuleException("Awarded bid cannot be revised");
+        }
+
+        if (bid.getBidStatus() == BidStatus.LOST) {
+            throw new BusinessRuleException("Lost bid cannot be revised");
+        }
+
+        if (bid.getBidStatus() == BidStatus.ARCHIVED) {
+            throw new BusinessRuleException("Archived bid cannot be revised");
+        }
+    }
+
+    private void ensureCurrentRevisionCanBeSent(Bid bid, BidRevision revision) {
+        if (bid.getBidStatus() == BidStatus.AWARDED) {
+            throw new BusinessRuleException("Awarded bid revision cannot be sent");
+        }
+
+        if (bid.getBidStatus() == BidStatus.LOST) {
+            throw new BusinessRuleException("Lost bid revision cannot be sent");
+        }
+
+        if (bid.getBidStatus() == BidStatus.ARCHIVED) {
+            throw new BusinessRuleException("Archived bid revision cannot be sent");
+        }
+
+        if (bid.getCurrentRevision() == null
+                || !bid.getCurrentRevision().getBidRevisionId().equals(revision.getBidRevisionId())) {
+            throw new BusinessRuleException("Only current revision can be sent");
+        }
+
+        if (revision.getRevisionStatus() != RevisionStatus.DRAFT) {
+            throw new BusinessRuleException("Only DRAFT revisions can be sent");
+        }
+    }
+
+    private void ensureCurrentRevisionCanBeAwarded(Bid bid, BidRevision revision) {
+        if (bid.getBidStatus() == BidStatus.AWARDED) {
+            throw new BusinessRuleException("Awarded bid revision cannot be awarded");
+        }
+
+        if (bid.getBidStatus() == BidStatus.LOST) {
+            throw new BusinessRuleException("Lost bid revision cannot be awarded");
+        }
+
+        if (bid.getBidStatus() == BidStatus.ARCHIVED) {
+            throw new BusinessRuleException("Archived bid revision cannot be awarded");
+        }
+
+        if (bid.getCurrentRevision() == null
+                || !bid.getCurrentRevision().getBidRevisionId().equals(revision.getBidRevisionId())) {
+            throw new BusinessRuleException("Only current revision can be awarded");
+        }
+
+        if (revision.getRevisionStatus() != RevisionStatus.SENT) {
+            throw new BusinessRuleException("Only SENT revisions can be awarded");
+        }
+    }
+
+    private void cloneRevisionItems(
+            BidRevision sourceRevision,
+            BidRevision targetRevision,
+            LocalDateTime now) {
+
+        List<BidRevisionItem> sourceItems = bidRevisionItemRepository
+                .findByBidRevision_BidRevisionIdAndIsDeletedFalseOrderByDisplayOrderAsc(
+                        sourceRevision.getBidRevisionId());
+
+        for (BidRevisionItem sourceItem : sourceItems) {
+            BidRevisionItem clonedItem = new BidRevisionItem();
+
+            clonedItem.setBidRevisionItemId(UUID.randomUUID());
+            clonedItem.setBidRevision(targetRevision);
+
+            clonedItem.setLineNumber(sourceItem.getLineNumber());
+            clonedItem.setDisplayOrder(sourceItem.getDisplayOrder());
+            clonedItem.setGroupName(sourceItem.getGroupName());
+            clonedItem.setDescription(sourceItem.getDescription());
+            clonedItem.setQuantity(sourceItem.getQuantity());
+            clonedItem.setUnitOfMeasure(sourceItem.getUnitOfMeasure());
+
+            clonedItem.setUnitCost(sourceItem.getUnitCost());
+            clonedItem.setUnitPrice(sourceItem.getUnitPrice());
+            clonedItem.setTotalCost(sourceItem.getTotalCost());
+            clonedItem.setTotalPrice(sourceItem.getTotalPrice());
+            clonedItem.setMarkupPercent(sourceItem.getMarkupPercent());
+            clonedItem.setGpmPercent(sourceItem.getGpmPercent());
+
+            clonedItem.setIsTaxable(sourceItem.getIsTaxable());
+            clonedItem.setTaxAmount(sourceItem.getTaxAmount());
+            clonedItem.setPriceWithTax(sourceItem.getPriceWithTax());
+
+            clonedItem.setItemType(sourceItem.getItemType());
+            clonedItem.setTaxRate(sourceItem.getTaxRate());
+            clonedItem.setTaxRateSnapshotCode(sourceItem.getTaxRateSnapshotCode());
+            clonedItem.setTaxRateSnapshotName(sourceItem.getTaxRateSnapshotName());
+            clonedItem.setTaxRateSnapshotPercent(sourceItem.getTaxRateSnapshotPercent());
+
+            clonedItem.setCustomerDisplayMode(
+                    sourceItem.getCustomerDisplayMode() != null
+                            ? sourceItem.getCustomerDisplayMode()
+                            : CustomerDisplayMode.ITEM_TOTAL_ONLY);
+
+            clonedItem.setIsOptional(sourceItem.getIsOptional());
+            clonedItem.setShowCustomerRow(sourceItem.getShowCustomerRow());
+            clonedItem.setShowCustomerPrice(sourceItem.getShowCustomerPrice());
+            clonedItem.setInternalNote(sourceItem.getInternalNote());
+
+            clonedItem.setClonedFromItem(sourceItem);
+
+            clonedItem.setCreatedAtUtc(now);
+            clonedItem.setUpdatedAtUtc(now);
+            clonedItem.setIsDeleted(false);
+
+            BidRevisionItem savedClonedItem = bidRevisionItemRepository.save(clonedItem);
+
+            List<BidRevisionItemCost> sourceCosts = bidRevisionItemCostRepository
+                    .findByBidRevisionItem_BidRevisionItemIdAndIsDeletedFalseOrderByDisplayOrderAsc(
+                            sourceItem.getBidRevisionItemId());
+
+            for (BidRevisionItemCost sourceCost : sourceCosts) {
+                BidRevisionItemCost clonedCost = new BidRevisionItemCost();
+
+                clonedCost.setBidRevisionItemCostId(UUID.randomUUID());
+                clonedCost.setBidRevisionItem(savedClonedItem);
+
+                clonedCost.setCostElement(sourceCost.getCostElement());
+                clonedCost.setCostRate(sourceCost.getCostRate());
+
+                clonedCost.setLineNumber(sourceCost.getLineNumber());
+                clonedCost.setDisplayOrder(sourceCost.getDisplayOrder());
+
+                clonedCost.setQuantity(sourceCost.getQuantity());
+                clonedCost.setUnitOfMeasure(sourceCost.getUnitOfMeasure());
+
+                clonedCost.setRateSnapshot(sourceCost.getRateSnapshot());
+                clonedCost.setRateUnitSnapshot(sourceCost.getRateUnitSnapshot());
+
+                clonedCost.setUnitCost(sourceCost.getUnitCost());
+                clonedCost.setUnitPrice(sourceCost.getUnitPrice());
+
+                clonedCost.setTotalCost(sourceCost.getTotalCost());
+                clonedCost.setTotalPrice(sourceCost.getTotalPrice());
+
+                // Legacy compatibility only.
+                clonedCost.setTaxAmount(BigDecimal.ZERO);
+                clonedCost.setPriceWithTax(sourceCost.getTotalPrice());
+
+                clonedCost.setMarkupPercent(sourceCost.getMarkupPercent());
+                clonedCost.setGpmPercent(sourceCost.getGpmPercent());
+
+                clonedCost.setIsTaxable(sourceCost.getIsTaxable());
+                clonedCost.setShowCustomer(sourceCost.getShowCustomer());
+                clonedCost.setIsOptional(sourceCost.getIsOptional());
+                clonedCost.setGroupName(sourceCost.getGroupName());
+                clonedCost.setInternalNote(sourceCost.getInternalNote());
+
+                clonedCost.setClonedFromItemCost(sourceCost);
+
+                clonedCost.setCreatedAtUtc(now);
+                clonedCost.setUpdatedAtUtc(now);
+                clonedCost.setIsDeleted(false);
+
+                bidRevisionItemCostRepository.save(clonedCost);
+            }
+
+            pricingService.recalculateItemTotals(savedClonedItem);
+            savedClonedItem.setUpdatedAtUtc(now);
+            bidRevisionItemRepository.save(savedClonedItem);
+        }
     }
 }
