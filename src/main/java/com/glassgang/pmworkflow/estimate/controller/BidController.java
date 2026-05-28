@@ -1,10 +1,18 @@
 package com.glassgang.pmworkflow.estimate.controller;
 
 import com.glassgang.pmworkflow.estimate.dto.BidResponse;
+import com.glassgang.pmworkflow.estimate.dto.BidRevisionItemCostResponse;
 import com.glassgang.pmworkflow.estimate.dto.BidRevisionResponse;
+import com.glassgang.pmworkflow.estimate.dto.CreateBidFromRevisionRequest;
 import com.glassgang.pmworkflow.estimate.dto.CreateBidRequest;
+import com.glassgang.pmworkflow.estimate.dto.CreateBidRevisionItemCostRequest;
 import com.glassgang.pmworkflow.estimate.dto.CreateBidRevisionRequest;
+import com.glassgang.pmworkflow.estimate.dto.UpdateBidRevisionItemCostRequest;
+import com.glassgang.pmworkflow.estimate.dto.UpdateBidRevisionItemRequest;
 import com.glassgang.pmworkflow.estimate.service.BidService;
+import com.glassgang.pmworkflow.estimate.dto.BidRevisionItemResponse;
+import com.glassgang.pmworkflow.estimate.dto.CreateBidRevisionItemRequest;
+
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
@@ -66,5 +74,68 @@ public class BidController {
     @PostMapping("/{bidId}/lose")
     public BidResponse loseBid(@PathVariable UUID bidId) {
         return bidService.loseBid(bidId);
+    }
+
+    @PostMapping("/revisions/{bidRevisionId}/items")
+    public BidRevisionItemResponse createRevisionItem(
+            @PathVariable UUID bidRevisionId,
+            @Valid @RequestBody CreateBidRevisionItemRequest request) {
+
+        return bidService.createRevisionItem(bidRevisionId, request);
+    }
+
+    @GetMapping("/revisions/{bidRevisionId}/items")
+    public List<BidRevisionItemResponse> getRevisionItems(
+            @PathVariable UUID bidRevisionId) {
+
+        return bidService.getRevisionItems(bidRevisionId);
+    }
+
+    @DeleteMapping("/revisions/items/{bidRevisionItemId}")
+    public void deleteRevisionItem(@PathVariable UUID bidRevisionItemId) {
+        bidService.deleteRevisionItem(bidRevisionItemId);
+    }
+
+    @PatchMapping("/revisions/items/{bidRevisionItemId}")
+    public BidRevisionItemResponse updateRevisionItem(
+            @PathVariable UUID bidRevisionItemId,
+            @Valid @RequestBody UpdateBidRevisionItemRequest request) {
+
+        return bidService.updateRevisionItem(bidRevisionItemId, request);
+    }
+
+    @PostMapping("/revisions/items/{bidRevisionItemId}/costs")
+    public BidRevisionItemCostResponse createItemCost(
+            @PathVariable UUID bidRevisionItemId,
+            @Valid @RequestBody CreateBidRevisionItemCostRequest request) {
+
+        return bidService.createItemCost(bidRevisionItemId, request);
+    }
+
+    @GetMapping("/revisions/items/{bidRevisionItemId}/costs")
+    public List<BidRevisionItemCostResponse> getItemCosts(
+            @PathVariable UUID bidRevisionItemId) {
+
+        return bidService.getItemCosts(bidRevisionItemId);
+    }
+
+    @PatchMapping("/revisions/item-costs/{bidRevisionItemCostId}")
+    public BidRevisionItemCostResponse updateItemCost(
+            @PathVariable UUID bidRevisionItemCostId,
+            @Valid @RequestBody UpdateBidRevisionItemCostRequest request) {
+
+        return bidService.updateItemCost(bidRevisionItemCostId, request);
+    }
+
+    @DeleteMapping("/revisions/item-costs/{bidRevisionItemCostId}")
+    public void deleteItemCost(@PathVariable UUID bidRevisionItemCostId) {
+        bidService.deleteItemCost(bidRevisionItemCostId);
+    }
+
+    @PostMapping("/from-revision/{sourceBidRevisionId}")
+    public BidResponse createBidFromRevision(
+            @PathVariable UUID sourceBidRevisionId,
+            @Valid @RequestBody CreateBidFromRevisionRequest request) {
+        return bidService.createBidFromRevision(sourceBidRevisionId, request);
     }
 }

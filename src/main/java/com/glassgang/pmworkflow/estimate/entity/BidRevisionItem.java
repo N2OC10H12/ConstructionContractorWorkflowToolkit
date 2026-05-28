@@ -1,5 +1,7 @@
 package com.glassgang.pmworkflow.estimate.entity;
 
+import com.glassgang.pmworkflow.estimate.enums.CustomerDisplayMode;
+
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -103,4 +105,25 @@ public class BidRevisionItem {
 
     @Column(name = "deleted_by_user_id")
     private UUID deletedByUserId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "item_type_id")
+    private ItemType itemType;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tax_rate_id")
+    private TaxRate taxRate;
+
+    @Column(name = "tax_rate_snapshot_code", length = 50)
+    private String taxRateSnapshotCode;
+
+    @Column(name = "tax_rate_snapshot_name", length = 150)
+    private String taxRateSnapshotName;
+
+    @Column(name = "tax_rate_snapshot_percent", precision = 9, scale = 4)
+    private BigDecimal taxRateSnapshotPercent;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "customer_display_mode", nullable = false, length = 80)
+    private CustomerDisplayMode customerDisplayMode;
 }

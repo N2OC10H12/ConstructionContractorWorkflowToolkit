@@ -17,8 +17,8 @@ public class BidRevisionResponse {
     private Integer revisionNumber;
     private String revisionDisplayName;
     private RevisionStatus revisionStatus;
-    private String taxType;
-    private BigDecimal taxRatePercent;
+    // private String taxType;
+    // private BigDecimal taxRatePercent;
     private BigDecimal subtotalCost;
     private BigDecimal subtotalPrice;
     private BigDecimal taxAmount;

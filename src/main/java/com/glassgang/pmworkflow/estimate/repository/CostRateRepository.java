@@ -8,5 +8,7 @@ import java.util.UUID;
 
 public interface CostRateRepository extends JpaRepository<CostRate, UUID> {
 
-    Optional<CostRate> findByCodeAndIsDeletedFalse(String code);
+    Optional<CostRate> findByCostRateIdAndIsDeletedFalseAndIsActiveTrue(
+            UUID costRateId
+    );
 }
