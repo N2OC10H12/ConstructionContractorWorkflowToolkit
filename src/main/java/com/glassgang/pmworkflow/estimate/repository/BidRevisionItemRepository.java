@@ -12,33 +12,37 @@ import java.util.UUID;
 
 public interface BidRevisionItemRepository extends JpaRepository<BidRevisionItem, UUID> {
 
-        @EntityGraph(attributePaths = { "itemType", "taxRate" })
-        List<BidRevisionItem> findByBidRevision_BidRevisionIdAndIsDeletedFalseOrderByDisplayOrderAsc(
-                        UUID bidRevisionId);
+    @EntityGraph(attributePaths = { "itemType", "taxRate" })
+    List<BidRevisionItem> findByBidRevision_BidRevisionIdAndIsDeletedFalseOrderByDisplayOrderAsc(
+            UUID bidRevisionId);
 
-        @EntityGraph(attributePaths = { "itemType", "taxRate" })
-        List<BidRevisionItem> findByBidRevision_BidRevisionIdAndIsDeletedFalse(
-                        UUID bidRevisionId);
+    @EntityGraph(attributePaths = { "itemType", "taxRate" })
+    List<BidRevisionItem> findByBidRevision_BidRevisionIdAndIsDeletedFalse(
+            UUID bidRevisionId);
 
-        Integer countByBidRevision_BidRevisionIdAndIsDeletedFalse(
-                        UUID bidRevisionId);
+    Integer countByBidRevision_BidRevisionIdAndIsDeletedFalse(
+            UUID bidRevisionId);
 
-        Optional<BidRevisionItem> findByBidRevisionItemIdAndIsDeletedFalse(
-                        UUID bidRevisionItemId);
+    Optional<BidRevisionItem> findByBidRevisionItemIdAndIsDeletedFalse(
+            UUID bidRevisionItemId);
 
-        @Query("""
-                            select max(i.lineNumber)
-                            from BidRevisionItem i
-                            where i.bidRevision.bidRevisionId = :bidRevisionId
-                        """)
-        Optional<Integer> findTopLineNumberByBidRevisionId(
-                        @Param("bidRevisionId") UUID bidRevisionId);
+    @Query("""
+                select max(i.lineNumber)
+                from BidRevisionItem i
+                where i.bidRevision.bidRevisionId = :bidRevisionId
+            """)
+    Optional<Integer> findTopLineNumberByBidRevisionId(
+            @Param("bidRevisionId") UUID bidRevisionId);
 
-        @Query("""
-                            select max(i.displayOrder)
-                            from BidRevisionItem i
-                            where i.bidRevision.bidRevisionId = :bidRevisionId
-                        """)
-        Optional<Integer> findTopDisplayOrderByBidRevisionId(
-                        @Param("bidRevisionId") UUID bidRevisionId);
+    @Query("""
+                select max(i.displayOrder)
+                from BidRevisionItem i
+                where i.bidRevision.bidRevisionId = :bidRevisionId
+            """)
+    Optional<Integer> findTopDisplayOrderByBidRevisionId(
+            @Param("bidRevisionId") UUID bidRevisionId);
+
+    boolean existsByItemType_ItemTypeIdAndIsDeletedFalse(UUID itemTypeId);
+
+    boolean existsByTaxRate_TaxRateIdAndIsDeletedFalse(UUID taxRateId);
 }

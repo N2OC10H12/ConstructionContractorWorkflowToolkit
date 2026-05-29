@@ -11,5 +11,9 @@ public interface ItemTypeRepository extends JpaRepository<ItemType, UUID> {
 
     Optional<ItemType> findByItemTypeIdAndIsDeletedFalseAndIsActiveTrue(UUID itemTypeId);
 
+    Optional<ItemType> findByCodeAndIsDeletedFalse(String code);
+
+    boolean existsByCodeAndIsDeletedFalse(String code);
+
     List<ItemType> findByIsDeletedFalseOrderByCodeAsc();
 }

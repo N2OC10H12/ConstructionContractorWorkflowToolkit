@@ -711,7 +711,7 @@ public class BidService {
         cost.setUnitOfMeasure(request.getUnitOfMeasure());
 
         cost.setRateSnapshot(costRate != null ? costRate.getRateAmount() : null);
-        cost.setRateUnitSnapshot(costRate != null ? costRate.getRateUnit() : null);
+        cost.setRateUnitSnapshot(costRate != null ? costRate.getRateUnit().name() : null);
 
         cost.setUnitCost(request.getUnitCost());
         cost.setUnitPrice(request.getUnitPrice());
@@ -801,7 +801,7 @@ public class BidService {
 
             cost.setCostRate(costRate);
             cost.setRateSnapshot(costRate.getRateAmount());
-            cost.setRateUnitSnapshot(costRate.getRateUnit());
+            cost.setRateUnitSnapshot(costRate.getRateUnit().name());
         }
 
         if (request.getGroupName() != null) {
@@ -1008,106 +1008,122 @@ public class BidService {
                         sourceRevision.getBidRevisionId());
 
         for (BidRevisionItem sourceItem : sourceItems) {
-            BidRevisionItem clonedItem = new BidRevisionItem();
+            BidRevisionItem savedClonedItem = cloneRevisionItem(sourceItem, targetRevision, now);
 
-            clonedItem.setBidRevisionItemId(UUID.randomUUID());
-            clonedItem.setBidRevision(targetRevision);
-
-            clonedItem.setLineNumber(sourceItem.getLineNumber());
-            clonedItem.setDisplayOrder(sourceItem.getDisplayOrder());
-            clonedItem.setGroupName(sourceItem.getGroupName());
-            clonedItem.setDescription(sourceItem.getDescription());
-            clonedItem.setQuantity(sourceItem.getQuantity());
-            clonedItem.setUnitOfMeasure(sourceItem.getUnitOfMeasure());
-
-            clonedItem.setUnitCost(sourceItem.getUnitCost());
-            clonedItem.setUnitPrice(sourceItem.getUnitPrice());
-            clonedItem.setTotalCost(sourceItem.getTotalCost());
-            clonedItem.setTotalPrice(sourceItem.getTotalPrice());
-            clonedItem.setMarkupPercent(sourceItem.getMarkupPercent());
-            clonedItem.setGpmPercent(sourceItem.getGpmPercent());
-
-            clonedItem.setIsTaxable(sourceItem.getIsTaxable());
-            clonedItem.setTaxAmount(sourceItem.getTaxAmount());
-            clonedItem.setPriceWithTax(sourceItem.getPriceWithTax());
-
-            clonedItem.setItemType(sourceItem.getItemType());
-            clonedItem.setTaxRate(sourceItem.getTaxRate());
-            clonedItem.setTaxRateSnapshotCode(sourceItem.getTaxRateSnapshotCode());
-            clonedItem.setTaxRateSnapshotName(sourceItem.getTaxRateSnapshotName());
-            clonedItem.setTaxRateSnapshotPercent(sourceItem.getTaxRateSnapshotPercent());
-
-            clonedItem.setCustomerDisplayMode(
-                    sourceItem.getCustomerDisplayMode() != null
-                            ? sourceItem.getCustomerDisplayMode()
-                            : CustomerDisplayMode.ITEM_TOTAL_ONLY);
-
-            clonedItem.setIsOptional(sourceItem.getIsOptional());
-            clonedItem.setShowCustomerRow(sourceItem.getShowCustomerRow());
-            clonedItem.setShowCustomerPrice(sourceItem.getShowCustomerPrice());
-            clonedItem.setInternalNote(sourceItem.getInternalNote());
-
-            clonedItem.setClonedFromItem(sourceItem);
-
-            clonedItem.setCreatedAtUtc(now);
-            clonedItem.setUpdatedAtUtc(now);
-            clonedItem.setIsDeleted(false);
-
-            BidRevisionItem savedClonedItem = bidRevisionItemRepository.save(clonedItem);
-
-            List<BidRevisionItemCost> sourceCosts = bidRevisionItemCostRepository
-                    .findByBidRevisionItem_BidRevisionItemIdAndIsDeletedFalseOrderByDisplayOrderAsc(
-                            sourceItem.getBidRevisionItemId());
-
-            for (BidRevisionItemCost sourceCost : sourceCosts) {
-                BidRevisionItemCost clonedCost = new BidRevisionItemCost();
-
-                clonedCost.setBidRevisionItemCostId(UUID.randomUUID());
-                clonedCost.setBidRevisionItem(savedClonedItem);
-
-                clonedCost.setCostElement(sourceCost.getCostElement());
-                clonedCost.setCostRate(sourceCost.getCostRate());
-
-                clonedCost.setLineNumber(sourceCost.getLineNumber());
-                clonedCost.setDisplayOrder(sourceCost.getDisplayOrder());
-
-                clonedCost.setQuantity(sourceCost.getQuantity());
-                clonedCost.setUnitOfMeasure(sourceCost.getUnitOfMeasure());
-
-                clonedCost.setRateSnapshot(sourceCost.getRateSnapshot());
-                clonedCost.setRateUnitSnapshot(sourceCost.getRateUnitSnapshot());
-
-                clonedCost.setUnitCost(sourceCost.getUnitCost());
-                clonedCost.setUnitPrice(sourceCost.getUnitPrice());
-
-                clonedCost.setTotalCost(sourceCost.getTotalCost());
-                clonedCost.setTotalPrice(sourceCost.getTotalPrice());
-
-                // Legacy compatibility only.
-                clonedCost.setTaxAmount(BigDecimal.ZERO);
-                clonedCost.setPriceWithTax(sourceCost.getTotalPrice());
-
-                clonedCost.setMarkupPercent(sourceCost.getMarkupPercent());
-                clonedCost.setGpmPercent(sourceCost.getGpmPercent());
-
-                clonedCost.setIsTaxable(sourceCost.getIsTaxable());
-                clonedCost.setShowCustomer(sourceCost.getShowCustomer());
-                clonedCost.setIsOptional(sourceCost.getIsOptional());
-                clonedCost.setGroupName(sourceCost.getGroupName());
-                clonedCost.setInternalNote(sourceCost.getInternalNote());
-
-                clonedCost.setClonedFromItemCost(sourceCost);
-
-                clonedCost.setCreatedAtUtc(now);
-                clonedCost.setUpdatedAtUtc(now);
-                clonedCost.setIsDeleted(false);
-
-                bidRevisionItemCostRepository.save(clonedCost);
-            }
+            cloneItemCosts(sourceItem, savedClonedItem, now);
 
             pricingService.recalculateItemTotals(savedClonedItem);
             savedClonedItem.setUpdatedAtUtc(now);
             bidRevisionItemRepository.save(savedClonedItem);
+        }
+    }
+
+    private BidRevisionItem cloneRevisionItem(
+            BidRevisionItem sourceItem,
+            BidRevision targetRevision,
+            LocalDateTime now) {
+
+        BidRevisionItem clonedItem = new BidRevisionItem();
+
+        clonedItem.setBidRevisionItemId(UUID.randomUUID());
+        clonedItem.setBidRevision(targetRevision);
+
+        clonedItem.setLineNumber(sourceItem.getLineNumber());
+        clonedItem.setDisplayOrder(sourceItem.getDisplayOrder());
+        clonedItem.setGroupName(sourceItem.getGroupName());
+        clonedItem.setDescription(sourceItem.getDescription());
+        clonedItem.setQuantity(sourceItem.getQuantity());
+        clonedItem.setUnitOfMeasure(sourceItem.getUnitOfMeasure());
+
+        clonedItem.setUnitCost(sourceItem.getUnitCost());
+        clonedItem.setUnitPrice(sourceItem.getUnitPrice());
+        clonedItem.setTotalCost(sourceItem.getTotalCost());
+        clonedItem.setTotalPrice(sourceItem.getTotalPrice());
+        clonedItem.setMarkupPercent(sourceItem.getMarkupPercent());
+        clonedItem.setGpmPercent(sourceItem.getGpmPercent());
+
+        clonedItem.setIsTaxable(sourceItem.getIsTaxable());
+        clonedItem.setTaxAmount(sourceItem.getTaxAmount());
+        clonedItem.setPriceWithTax(sourceItem.getPriceWithTax());
+
+        clonedItem.setItemType(sourceItem.getItemType());
+        clonedItem.setTaxRate(sourceItem.getTaxRate());
+        clonedItem.setTaxRateSnapshotCode(sourceItem.getTaxRateSnapshotCode());
+        clonedItem.setTaxRateSnapshotName(sourceItem.getTaxRateSnapshotName());
+        clonedItem.setTaxRateSnapshotPercent(sourceItem.getTaxRateSnapshotPercent());
+
+        clonedItem.setCustomerDisplayMode(
+                sourceItem.getCustomerDisplayMode() != null
+                        ? sourceItem.getCustomerDisplayMode()
+                        : CustomerDisplayMode.ITEM_TOTAL_ONLY);
+
+        clonedItem.setIsOptional(sourceItem.getIsOptional());
+        clonedItem.setShowCustomerRow(sourceItem.getShowCustomerRow());
+        clonedItem.setShowCustomerPrice(sourceItem.getShowCustomerPrice());
+        clonedItem.setInternalNote(sourceItem.getInternalNote());
+
+        clonedItem.setClonedFromItem(sourceItem);
+
+        clonedItem.setCreatedAtUtc(now);
+        clonedItem.setUpdatedAtUtc(now);
+        clonedItem.setIsDeleted(false);
+
+        return bidRevisionItemRepository.save(clonedItem);
+    }
+
+    private void cloneItemCosts(
+            BidRevisionItem sourceItem,
+            BidRevisionItem targetItem,
+            LocalDateTime now) {
+
+        List<BidRevisionItemCost> sourceCosts = bidRevisionItemCostRepository
+                .findByBidRevisionItem_BidRevisionItemIdAndIsDeletedFalseOrderByDisplayOrderAsc(
+                        sourceItem.getBidRevisionItemId());
+
+        for (BidRevisionItemCost sourceCost : sourceCosts) {
+            BidRevisionItemCost clonedCost = new BidRevisionItemCost();
+
+            clonedCost.setBidRevisionItemCostId(UUID.randomUUID());
+            clonedCost.setBidRevisionItem(targetItem);
+
+            clonedCost.setCostElement(sourceCost.getCostElement());
+            clonedCost.setCostRate(sourceCost.getCostRate());
+
+            clonedCost.setLineNumber(sourceCost.getLineNumber());
+            clonedCost.setDisplayOrder(sourceCost.getDisplayOrder());
+
+            clonedCost.setQuantity(sourceCost.getQuantity());
+            clonedCost.setUnitOfMeasure(sourceCost.getUnitOfMeasure());
+
+            clonedCost.setRateSnapshot(sourceCost.getRateSnapshot());
+            clonedCost.setRateUnitSnapshot(sourceCost.getRateUnitSnapshot());
+
+            clonedCost.setUnitCost(sourceCost.getUnitCost());
+            clonedCost.setUnitPrice(sourceCost.getUnitPrice());
+
+            clonedCost.setTotalCost(sourceCost.getTotalCost());
+            clonedCost.setTotalPrice(sourceCost.getTotalPrice());
+
+            // Legacy compatibility only.
+            clonedCost.setTaxAmount(BigDecimal.ZERO);
+            clonedCost.setPriceWithTax(sourceCost.getTotalPrice());
+
+            clonedCost.setMarkupPercent(sourceCost.getMarkupPercent());
+            clonedCost.setGpmPercent(sourceCost.getGpmPercent());
+
+            clonedCost.setIsTaxable(sourceCost.getIsTaxable());
+            clonedCost.setShowCustomer(sourceCost.getShowCustomer());
+            clonedCost.setIsOptional(sourceCost.getIsOptional());
+            clonedCost.setGroupName(sourceCost.getGroupName());
+            clonedCost.setInternalNote(sourceCost.getInternalNote());
+
+            clonedCost.setClonedFromItemCost(sourceCost);
+
+            clonedCost.setCreatedAtUtc(now);
+            clonedCost.setUpdatedAtUtc(now);
+            clonedCost.setIsDeleted(false);
+
+            bidRevisionItemCostRepository.save(clonedCost);
         }
     }
 }

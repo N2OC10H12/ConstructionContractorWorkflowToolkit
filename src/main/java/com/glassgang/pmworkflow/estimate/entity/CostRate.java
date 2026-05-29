@@ -1,7 +1,11 @@
 package com.glassgang.pmworkflow.estimate.entity;
 
+import com.glassgang.pmworkflow.estimate.enums.CostRateUnit;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.EnumType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -33,8 +37,9 @@ public class CostRate {
     @Column(name = "rate_amount", nullable = false, precision = 19, scale = 4)
     private BigDecimal rateAmount;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "rate_unit", nullable = false, length = 50)
-    private String rateUnit;
+    private CostRateUnit rateUnit;
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive;
