@@ -47,11 +47,59 @@ public class CurrentUserUtil {
         return getCurrentRole().isAdmin();
     }
 
+    public boolean isCurrentUserPm() {
+        return getCurrentRole().isPm();
+    }
+
+    public boolean isCurrentUserPmManager() {
+        return getCurrentRole().isPmManager();
+    }
+
+    public boolean isCurrentUserPmViewer() {
+        return getCurrentRole().isPmViewer();
+    }
+
     public boolean isCurrentUserSupervisor() {
         return getCurrentRole().isSupervisor();
     }
 
-    public boolean isCurrentUserPm() {
-        return getCurrentRole().isPm();
+    public boolean isCurrentUserEstimator() {
+        return getCurrentRole().isEstimator();
+    }
+
+    public boolean isCurrentUserEstimateManager() {
+        return getCurrentRole().isEstimateManager();
+    }
+
+    public boolean isCurrentUserEstimateViewer() {
+        return getCurrentRole().isEstimateViewer();
+    }
+
+    public boolean canCurrentUserViewAllProjects() {
+        return getCurrentRole().canViewAllProjects();
+    }
+
+    public boolean canCurrentUserManageProjects() {
+        return getCurrentRole().canManageProjects();
+    }
+
+    public boolean canCurrentUserWorkOwnProjects() {
+        return getCurrentRole().canWorkOwnProjects();
+    }
+
+    public boolean canCurrentUserViewAllEstimates() {
+        return getCurrentRole().canViewAllEstimates();
+    }
+
+    public boolean canCurrentUserWorkOwnEstimates() {
+        return getCurrentRole().canWorkOwnEstimates();
+    }
+
+    public boolean canCurrentUserManageEstimateDictionaries() {
+        return getCurrentRole().canManageEstimateDictionaries();
+    }
+
+    public boolean canCurrentUserConvertEstimateToProject() {
+        return getCurrentRole().canConvertEstimateToProject();
     }
 }

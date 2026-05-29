@@ -1,5 +1,6 @@
 package com.glassgang.pmworkflow.estimate.service;
 
+import com.glassgang.pmworkflow.common.util.CurrentUserUtil;
 import com.glassgang.pmworkflow.estimate.dto.BidResponse;
 import com.glassgang.pmworkflow.estimate.dto.BidRevisionItemCostResponse;
 import com.glassgang.pmworkflow.estimate.dto.BidRevisionItemResponse;
@@ -18,7 +19,10 @@ import com.glassgang.pmworkflow.estimate.entity.BidRevisionItemCost;
 import com.glassgang.pmworkflow.estimate.entity.CostElement;
 import com.glassgang.pmworkflow.estimate.entity.CostRate;
 import com.glassgang.pmworkflow.estimate.entity.Customer;
+import com.glassgang.pmworkflow.estimate.entity.ItemType;
+import com.glassgang.pmworkflow.estimate.entity.TaxRate;
 import com.glassgang.pmworkflow.estimate.enums.BidStatus;
+import com.glassgang.pmworkflow.estimate.enums.CustomerDisplayMode;
 import com.glassgang.pmworkflow.estimate.enums.RevisionStatus;
 import com.glassgang.pmworkflow.estimate.mapper.BidMapper;
 import com.glassgang.pmworkflow.estimate.repository.BidRepository;
@@ -30,9 +34,6 @@ import com.glassgang.pmworkflow.estimate.repository.TaxRateRepository;
 import com.glassgang.pmworkflow.estimate.repository.BidRevisionItemCostRepository;
 import com.glassgang.pmworkflow.estimate.repository.CostElementRepository;
 import com.glassgang.pmworkflow.estimate.repository.CostRateRepository;
-import com.glassgang.pmworkflow.estimate.entity.ItemType;
-import com.glassgang.pmworkflow.estimate.entity.TaxRate;
-import com.glassgang.pmworkflow.estimate.enums.CustomerDisplayMode;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,6 +59,8 @@ public class BidService {
     private final ItemTypeRepository itemTypeRepository;
     private final TaxRateRepository taxRateRepository;
     private final PricingService pricingService;
+    private final CurrentUserUtil currentUserUtil;
+    private final EstimateAccessService estimateAccessService;
 
     public BidService(
             BidRepository bidRepository,
@@ -71,7 +74,9 @@ public class BidService {
             BidMapper bidMapper,
             ItemTypeRepository itemTypeRepository,
             TaxRateRepository taxRateRepository,
-            PricingService pricingService) {
+            PricingService pricingService,
+            CurrentUserUtil currentUserUtil,
+            EstimateAccessService estimateAccessService) {
         this.bidRepository = bidRepository;
         this.bidRevisionRepository = bidRevisionRepository;
         this.bidRevisionItemRepository = bidRevisionItemRepository;
@@ -84,10 +89,16 @@ public class BidService {
         this.itemTypeRepository = itemTypeRepository;
         this.taxRateRepository = taxRateRepository;
         this.pricingService = pricingService;
+        this.currentUserUtil = currentUserUtil;
+        this.estimateAccessService = estimateAccessService;
     }
 
     @Transactional
     public BidResponse createBid(CreateBidRequest request) {
+
+        estimateAccessService.requireEstimateCreateAccess();
+        UUID currentUserId = currentUserUtil.getCurrentUserId();
+
         Customer customer = customerRepository
                 .findByCustomerIdAndIsDeletedFalse(request.getCustomerId())
                 .orElseThrow(() -> new NotFoundException("Customer not found"));
@@ -105,6 +116,8 @@ public class BidService {
         bid.setBidStatus(BidStatus.DRAFT);
         bid.setCreatedAtUtc(now);
         bid.setUpdatedAtUtc(now);
+        bid.setCreatedByUserId(currentUserId);
+        bid.setUpdatedByUserId(currentUserId);
         bid.setIsDeleted(false);
 
         Bid savedBid = bidRepository.save(bid);
@@ -125,6 +138,8 @@ public class BidService {
         revision.setTotalPrice(BigDecimal.ZERO);
         revision.setCreatedAtUtc(now);
         revision.setUpdatedAtUtc(now);
+        revision.setCreatedByUserId(currentUserId);
+        revision.setUpdatedByUserId(currentUserId);
         revision.setIsDeleted(false);
 
         BidRevision savedRevision = bidRevisionRepository.save(revision);
@@ -142,9 +157,14 @@ public class BidService {
             UUID sourceBidRevisionId,
             CreateBidFromRevisionRequest request) {
 
+        estimateAccessService.requireEstimateCreateAccess();
+        UUID currentUserId = currentUserUtil.getCurrentUserId();
+
         BidRevision sourceRevision = bidRevisionRepository
                 .findByBidRevisionIdAndIsDeletedFalse(sourceBidRevisionId)
                 .orElseThrow(() -> new NotFoundException("Source bid revision not found"));
+
+        estimateAccessService.requireBidViewAccess(sourceRevision.getBid());
 
         Customer customer = customerRepository
                 .findByCustomerIdAndIsDeletedFalse(request.getCustomerId())
@@ -163,6 +183,8 @@ public class BidService {
         newBid.setBidStatus(BidStatus.DRAFT);
         newBid.setCreatedAtUtc(now);
         newBid.setUpdatedAtUtc(now);
+        newBid.setCreatedByUserId(currentUserId);
+        newBid.setUpdatedByUserId(currentUserId);
         newBid.setIsDeleted(false);
 
         Bid savedBid = bidRepository.save(newBid);
@@ -193,11 +215,13 @@ public class BidService {
 
         newRevision.setCreatedAtUtc(now);
         newRevision.setUpdatedAtUtc(now);
+        newRevision.setCreatedByUserId(currentUserId);
+        newRevision.setUpdatedByUserId(currentUserId);
         newRevision.setIsDeleted(false);
 
         BidRevision savedRevision = bidRevisionRepository.save(newRevision);
 
-        cloneRevisionItems(sourceRevision, savedRevision, now);
+        cloneRevisionItems(sourceRevision, savedRevision, now, currentUserId);
 
         pricingService.recalculateRevisionTotals(savedRevision);
         savedRevision.setUpdatedAtUtc(now);
@@ -215,7 +239,35 @@ public class BidService {
                 .findByBidIdAndIsDeletedFalse(bidId)
                 .orElseThrow(() -> new NotFoundException("Bid not found"));
 
+        estimateAccessService.requireBidViewAccess(bid);
+
         return bidMapper.toBidResponse(bid);
+    }
+
+    public List<BidResponse> getBids() {
+
+        if (currentUserUtil.isCurrentUserAdmin()
+                || currentUserUtil.isCurrentUserEstimateManager()
+                || currentUserUtil.isCurrentUserEstimateViewer()) {
+
+            return bidRepository.findByIsDeletedFalseOrderByCreatedAtUtcDesc()
+                    .stream()
+                    .map(bidMapper::toBidResponse)
+                    .toList();
+        }
+
+        if (currentUserUtil.isCurrentUserEstimator()) {
+
+            UUID currentUserId = currentUserUtil.getCurrentUserId();
+
+            return bidRepository
+                    .findByCreatedByUserIdAndIsDeletedFalseOrderByCreatedAtUtcDesc(currentUserId)
+                    .stream()
+                    .map(bidMapper::toBidResponse)
+                    .toList();
+        }
+
+        throw new ForbiddenException("No access to estimates");
     }
 
     public BidRevisionResponse getBidRevision(UUID bidRevisionId) {
@@ -223,13 +275,17 @@ public class BidService {
                 .findByBidRevisionIdAndIsDeletedFalse(bidRevisionId)
                 .orElseThrow(() -> new NotFoundException("Bid revision not found"));
 
+        estimateAccessService.requireBidViewAccess(bidRevision.getBid());
+
         return bidMapper.toBidRevisionResponse(bidRevision);
     }
 
     public List<BidRevisionResponse> getBidRevisions(UUID bidId) {
 
-        bidRepository.findByBidIdAndIsDeletedFalse(bidId)
+        Bid bid = bidRepository.findByBidIdAndIsDeletedFalse(bidId)
                 .orElseThrow(() -> new NotFoundException("Bid not found"));
+
+        estimateAccessService.requireBidViewAccess(bid);
 
         return bidRevisionRepository
                 .findByBid_BidIdAndIsDeletedFalseOrderByRevisionNumberAsc(bidId)
@@ -246,6 +302,8 @@ public class BidService {
         Bid bid = bidRepository
                 .findByBidIdAndIsDeletedFalse(bidId)
                 .orElseThrow(() -> new NotFoundException("Bid not found"));
+
+        estimateAccessService.requireBidEditAccess(bid);
 
         ensureBidCanBeRevised(bid);
 
@@ -268,6 +326,8 @@ public class BidService {
         }
 
         LocalDateTime now = LocalDateTime.now();
+
+        UUID currentUserId = currentUserUtil.getCurrentUserId();
 
         Integer nextRevisionNumber = currentRevision.getRevisionNumber() + 1;
 
@@ -300,12 +360,14 @@ public class BidService {
 
         revision.setCreatedAtUtc(now);
         revision.setUpdatedAtUtc(now);
+        revision.setCreatedByUserId(currentUserId);
+        revision.setUpdatedByUserId(currentUserId);
 
         revision.setIsDeleted(false);
 
         BidRevision savedRevision = bidRevisionRepository.save(revision);
 
-        cloneRevisionItems(currentRevision, savedRevision, now);
+        cloneRevisionItems(currentRevision, savedRevision, now, currentUserId);
 
         pricingService.recalculateRevisionTotals(savedRevision);
         savedRevision.setUpdatedAtUtc(now);
@@ -313,7 +375,9 @@ public class BidService {
 
         bid.setCurrentRevision(savedRevision);
         bid.setBidStatus(BidStatus.DRAFT);
+
         bid.setUpdatedAtUtc(now);
+        bid.setUpdatedByUserId(currentUserId);
 
         bidRepository.save(bid);
 
@@ -329,6 +393,8 @@ public class BidService {
 
         Bid bid = revision.getBid();
 
+        estimateAccessService.requireBidEditAccess(bid);
+
         ensureCurrentRevisionCanBeSent(bid, revision);
 
         if (bid.getCurrentRevision() == null
@@ -343,14 +409,18 @@ public class BidService {
 
         LocalDateTime now = LocalDateTime.now();
 
+        UUID currentUserId = currentUserUtil.getCurrentUserId();
+
         revision.setRevisionStatus(RevisionStatus.SENT);
         revision.setSentAtUtc(now);
         revision.setUpdatedAtUtc(now);
+        revision.setUpdatedByUserId(currentUserId);
 
         BidRevision savedRevision = bidRevisionRepository.save(revision);
 
         bid.setBidStatus(BidStatus.SENT);
         bid.setUpdatedAtUtc(now);
+        bid.setUpdatedByUserId(currentUserId);
 
         bidRepository.save(bid);
 
@@ -366,6 +436,8 @@ public class BidService {
 
         Bid bid = revision.getBid();
 
+        estimateAccessService.requireBidEditAccess(bid);
+
         ensureCurrentRevisionCanBeAwarded(bid, revision);
 
         if (bid.getCurrentRevision() == null
@@ -380,6 +452,8 @@ public class BidService {
 
         LocalDateTime now = LocalDateTime.now();
 
+        UUID currentUserId = currentUserUtil.getCurrentUserId();
+
         List<BidRevision> bidRevisions = bidRevisionRepository
                 .findByBid_BidIdAndIsDeletedFalseOrderByRevisionNumberAsc(
                         bid.getBidId());
@@ -389,10 +463,12 @@ public class BidService {
                 bidRevision.setRevisionStatus(RevisionStatus.AWARDED);
                 bidRevision.setAwardedAtUtc(now);
                 bidRevision.setUpdatedAtUtc(now);
+                bidRevision.setUpdatedByUserId(currentUserId);
             } else if (bidRevision.getRevisionStatus() != RevisionStatus.ARCHIVED) {
                 bidRevision.setRevisionStatus(RevisionStatus.ARCHIVED);
                 bidRevision.setArchivedAtUtc(now);
                 bidRevision.setUpdatedAtUtc(now);
+                bidRevision.setUpdatedByUserId(currentUserId);
             }
         }
 
@@ -401,6 +477,7 @@ public class BidService {
         bid.setBidStatus(BidStatus.AWARDED);
         bid.setCurrentRevision(revision);
         bid.setUpdatedAtUtc(now);
+        bid.setUpdatedByUserId(currentUserId);
 
         bidRepository.save(bid);
 
@@ -414,6 +491,8 @@ public class BidService {
                 .findByBidIdAndIsDeletedFalse(bidId)
                 .orElseThrow(() -> new NotFoundException("Bid not found"));
 
+        estimateAccessService.requireBidEditAccess(bid);
+
         if (bid.getBidStatus() == BidStatus.LOST) {
             throw new BusinessRuleException("Bid is already lost");
         }
@@ -424,6 +503,8 @@ public class BidService {
 
         LocalDateTime now = LocalDateTime.now();
 
+        UUID currentUserId = currentUserUtil.getCurrentUserId();
+
         List<BidRevision> bidRevisions = bidRevisionRepository
                 .findByBid_BidIdAndIsDeletedFalseOrderByRevisionNumberAsc(bidId);
 
@@ -431,12 +512,14 @@ public class BidService {
             revision.setRevisionStatus(RevisionStatus.LOST);
             revision.setLostAtUtc(now);
             revision.setUpdatedAtUtc(now);
+            revision.setUpdatedByUserId(currentUserId);
         }
 
         bidRevisionRepository.saveAll(bidRevisions);
 
         bid.setBidStatus(BidStatus.LOST);
         bid.setUpdatedAtUtc(now);
+        bid.setUpdatedByUserId(currentUserId);
 
         Bid savedBid = bidRepository.save(bid);
 
@@ -454,10 +537,14 @@ public class BidService {
 
         Bid bid = revision.getBid();
 
+        estimateAccessService.requireBidEditAccess(bid);
+
         ensureBidCanBeChanged(bid);
         ensureCurrentRevisionCanBeChanged(bid, revision);
 
         LocalDateTime now = LocalDateTime.now();
+
+        UUID currentUserId = currentUserUtil.getCurrentUserId();
 
         int nextLineNumber = bidRevisionItemRepository
                 .findTopLineNumberByBidRevisionId(bidRevisionId)
@@ -512,6 +599,9 @@ public class BidService {
 
         item.setCreatedAtUtc(now);
         item.setUpdatedAtUtc(now);
+        item.setCreatedByUserId(currentUserId);
+        item.setUpdatedByUserId(currentUserId);
+
         item.setIsDeleted(false);
 
         BidRevisionItem savedItem = bidRevisionItemRepository.save(item);
@@ -519,10 +609,13 @@ public class BidService {
         pricingService.recalculateRevisionTotals(revision);
 
         revision.setUpdatedAtUtc(now);
+        revision.setUpdatedByUserId(currentUserId);
 
         bidRevisionRepository.save(revision);
 
         bid.setUpdatedAtUtc(now);
+        bid.setUpdatedByUserId(currentUserId);
+
         bidRepository.save(bid);
 
         return bidMapper.toBidRevisionItemResponse(savedItem);
@@ -551,10 +644,14 @@ public class BidService {
         BidRevision revision = item.getBidRevision();
         Bid bid = revision.getBid();
 
+        estimateAccessService.requireBidEditAccess(bid);
+
         ensureBidCanBeChanged(bid);
         ensureCurrentRevisionCanBeChanged(bid, revision);
 
         LocalDateTime now = LocalDateTime.now();
+
+        UUID currentUserId = currentUserUtil.getCurrentUserId();
 
         bidRevisionItemRepository.save(item);
 
@@ -573,15 +670,20 @@ public class BidService {
         item.setIsDeleted(true);
         item.setDeletedAtUtc(now);
         item.setUpdatedAtUtc(now);
+        item.setDeletedByUserId(currentUserId);
+        item.setUpdatedByUserId(currentUserId);
 
         bidRevisionItemRepository.save(item);
 
         pricingService.recalculateRevisionTotals(revision);
         revision.setUpdatedAtUtc(now);
+        revision.setUpdatedByUserId(currentUserId);
 
         bidRevisionRepository.save(revision);
 
         bid.setUpdatedAtUtc(now);
+        bid.setUpdatedByUserId(currentUserId);
+
         bidRepository.save(bid);
     }
 
@@ -596,6 +698,8 @@ public class BidService {
 
         BidRevision revision = item.getBidRevision();
         Bid bid = revision.getBid();
+
+        estimateAccessService.requireBidEditAccess(bid);
 
         ensureBidCanBeChanged(bid);
         ensureCurrentRevisionCanBeChanged(bid, revision);
@@ -642,18 +746,23 @@ public class BidService {
 
         LocalDateTime now = LocalDateTime.now();
 
+        UUID currentUserId = currentUserUtil.getCurrentUserId();
+
         item.setUpdatedAtUtc(now);
+        item.setUpdatedByUserId(currentUserId);
 
         BidRevisionItem savedItem = bidRevisionItemRepository.save(item);
 
         pricingService.recalculateRevisionTotals(revision);
 
-        // revision.setTotalPrice(revision.getSubtotalPrice().add(revision.getTaxAmount()));
         revision.setUpdatedAtUtc(now);
+        revision.setUpdatedByUserId(currentUserId);
 
         bidRevisionRepository.save(revision);
 
         bid.setUpdatedAtUtc(now);
+        bid.setUpdatedByUserId(currentUserId);
+
         bidRepository.save(bid);
 
         return bidMapper.toBidRevisionItemResponse(savedItem);
@@ -671,6 +780,8 @@ public class BidService {
         BidRevision revision = item.getBidRevision();
         Bid bid = revision.getBid();
 
+        estimateAccessService.requireBidEditAccess(bid);
+
         ensureBidCanBeChanged(bid);
         ensureCurrentRevisionCanBeChanged(bid, revision);
 
@@ -687,6 +798,8 @@ public class BidService {
         }
 
         LocalDateTime now = LocalDateTime.now();
+
+        UUID currentUserId = currentUserUtil.getCurrentUserId();
 
         int nextLineNumber = bidRevisionItemCostRepository
                 .findTopLineNumberByBidRevisionItemId(bidRevisionItemId)
@@ -721,9 +834,6 @@ public class BidService {
         cost.setMarkupPercent(null);
         cost.setGpmPercent(null);
 
-        // Legacy compatibility only.
-        // Cost-level tax is no longer part of active pricing.
-        // Item-level tax rate snapshot controls tax calculation.
         cost.setIsTaxable(true);
 
         cost.setShowCustomer(request.getShowCustomer());
@@ -732,21 +842,28 @@ public class BidService {
 
         cost.setCreatedAtUtc(now);
         cost.setUpdatedAtUtc(now);
+        cost.setCreatedByUserId(currentUserId);
+        cost.setUpdatedByUserId(currentUserId);
+
         cost.setIsDeleted(false);
 
         BidRevisionItemCost savedCost = bidRevisionItemCostRepository.save(cost);
 
         pricingService.recalculateItemTotals(item);
         item.setUpdatedAtUtc(now);
+        item.setUpdatedByUserId(currentUserId);
 
         bidRevisionItemRepository.save(item);
 
         pricingService.recalculateRevisionTotals(revision);
         revision.setUpdatedAtUtc(now);
+        revision.setUpdatedByUserId(currentUserId);
 
         bidRevisionRepository.save(revision);
 
         bid.setUpdatedAtUtc(now);
+        bid.setUpdatedByUserId(currentUserId);
+
         bidRepository.save(bid);
 
         return bidMapper.toBidRevisionItemCostResponse(savedCost);
@@ -778,6 +895,8 @@ public class BidService {
         BidRevisionItem item = cost.getBidRevisionItem();
         BidRevision revision = item.getBidRevision();
         Bid bid = revision.getBid();
+
+        estimateAccessService.requireBidEditAccess(bid);
 
         ensureBidCanBeChanged(bid);
         ensureCurrentRevisionCanBeChanged(bid, revision);
@@ -840,21 +959,28 @@ public class BidService {
 
         LocalDateTime now = LocalDateTime.now();
 
+        UUID currentUserId = currentUserUtil.getCurrentUserId();
+
         cost.setUpdatedAtUtc(now);
+        cost.setUpdatedByUserId(currentUserId);
 
         BidRevisionItemCost savedCost = bidRevisionItemCostRepository.save(cost);
 
         pricingService.recalculateItemTotals(item);
         item.setUpdatedAtUtc(now);
+        item.setUpdatedByUserId(currentUserId);
 
         bidRevisionItemRepository.save(item);
 
         pricingService.recalculateRevisionTotals(revision);
         revision.setUpdatedAtUtc(now);
+        revision.setUpdatedByUserId(currentUserId);
 
         bidRevisionRepository.save(revision);
 
         bid.setUpdatedAtUtc(now);
+        bid.setUpdatedByUserId(currentUserId);
+
         bidRepository.save(bid);
 
         return bidMapper.toBidRevisionItemCostResponse(savedCost);
@@ -871,28 +997,39 @@ public class BidService {
         BidRevision revision = item.getBidRevision();
         Bid bid = revision.getBid();
 
+        estimateAccessService.requireBidEditAccess(bid);
+
         ensureBidCanBeChanged(bid);
         ensureCurrentRevisionCanBeChanged(bid, revision);
 
         LocalDateTime now = LocalDateTime.now();
 
+        UUID currentUserId = currentUserUtil.getCurrentUserId();
+
         cost.setIsDeleted(true);
         cost.setDeletedAtUtc(now);
+        cost.setDeletedByUserId(currentUserId);
+
         cost.setUpdatedAtUtc(now);
+        cost.setUpdatedByUserId(currentUserId);
 
         bidRevisionItemCostRepository.save(cost);
 
         pricingService.recalculateItemTotals(item);
         item.setUpdatedAtUtc(now);
+        item.setUpdatedByUserId(currentUserId);
 
         bidRevisionItemRepository.save(item);
 
         pricingService.recalculateRevisionTotals(revision);
         revision.setUpdatedAtUtc(now);
+        revision.setUpdatedByUserId(currentUserId);
 
         bidRevisionRepository.save(revision);
 
         bid.setUpdatedAtUtc(now);
+        bid.setUpdatedByUserId(currentUserId);
+
         bidRepository.save(bid);
     }
 
@@ -1001,16 +1138,17 @@ public class BidService {
     private void cloneRevisionItems(
             BidRevision sourceRevision,
             BidRevision targetRevision,
-            LocalDateTime now) {
+            LocalDateTime now,
+            UUID currentUserId) {
 
         List<BidRevisionItem> sourceItems = bidRevisionItemRepository
                 .findByBidRevision_BidRevisionIdAndIsDeletedFalseOrderByDisplayOrderAsc(
                         sourceRevision.getBidRevisionId());
 
         for (BidRevisionItem sourceItem : sourceItems) {
-            BidRevisionItem savedClonedItem = cloneRevisionItem(sourceItem, targetRevision, now);
+            BidRevisionItem savedClonedItem = cloneRevisionItem(sourceItem, targetRevision, now, currentUserId);
 
-            cloneItemCosts(sourceItem, savedClonedItem, now);
+            cloneItemCosts(sourceItem, savedClonedItem, now, currentUserId);
 
             pricingService.recalculateItemTotals(savedClonedItem);
             savedClonedItem.setUpdatedAtUtc(now);
@@ -1021,7 +1159,8 @@ public class BidService {
     private BidRevisionItem cloneRevisionItem(
             BidRevisionItem sourceItem,
             BidRevision targetRevision,
-            LocalDateTime now) {
+            LocalDateTime now,
+            UUID currentUserId) {
 
         BidRevisionItem clonedItem = new BidRevisionItem();
 
@@ -1066,6 +1205,9 @@ public class BidService {
 
         clonedItem.setCreatedAtUtc(now);
         clonedItem.setUpdatedAtUtc(now);
+        clonedItem.setCreatedByUserId(currentUserId);
+        clonedItem.setUpdatedByUserId(currentUserId);
+
         clonedItem.setIsDeleted(false);
 
         return bidRevisionItemRepository.save(clonedItem);
@@ -1074,7 +1216,8 @@ public class BidService {
     private void cloneItemCosts(
             BidRevisionItem sourceItem,
             BidRevisionItem targetItem,
-            LocalDateTime now) {
+            LocalDateTime now,
+            UUID currentUserId) {
 
         List<BidRevisionItemCost> sourceCosts = bidRevisionItemCostRepository
                 .findByBidRevisionItem_BidRevisionItemIdAndIsDeletedFalseOrderByDisplayOrderAsc(
@@ -1121,6 +1264,8 @@ public class BidService {
 
             clonedCost.setCreatedAtUtc(now);
             clonedCost.setUpdatedAtUtc(now);
+            clonedCost.setCreatedByUserId(currentUserId);
+            clonedCost.setUpdatedByUserId(currentUserId);
             clonedCost.setIsDeleted(false);
 
             bidRevisionItemCostRepository.save(clonedCost);

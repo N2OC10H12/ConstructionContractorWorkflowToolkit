@@ -14,4 +14,6 @@ public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
     List<AppUser> findAllByOrderByUsernameAsc();
 
     List<AppUser> findByRoleOrderByUsernameAsc(String role);
+
+    List<AppUser> findByRoleInOrderByUsernameAsc(List<String> roles);
 }

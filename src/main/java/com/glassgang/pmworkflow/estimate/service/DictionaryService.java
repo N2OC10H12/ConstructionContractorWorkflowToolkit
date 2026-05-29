@@ -41,6 +41,7 @@ public class DictionaryService {
     private final CostRateRepository costRateRepository;
     private final BidRevisionItemRepository bidRevisionItemRepository;
     private final BidRevisionItemCostRepository bidRevisionItemCostRepository;
+    private final EstimateAccessService estimateAccessService;
 
     public DictionaryService(
             ItemTypeRepository itemTypeRepository,
@@ -48,13 +49,15 @@ public class DictionaryService {
             CostElementRepository costElementRepository,
             CostRateRepository costRateRepository,
             BidRevisionItemRepository bidRevisionItemRepository,
-            BidRevisionItemCostRepository bidRevisionItemCostRepository) {
+            BidRevisionItemCostRepository bidRevisionItemCostRepository,
+            EstimateAccessService estimateAccessService) {
         this.itemTypeRepository = itemTypeRepository;
         this.taxRateRepository = taxRateRepository;
         this.costElementRepository = costElementRepository;
         this.costRateRepository = costRateRepository;
         this.bidRevisionItemRepository = bidRevisionItemRepository;
         this.bidRevisionItemCostRepository = bidRevisionItemCostRepository;
+        this.estimateAccessService = estimateAccessService;
     }
 
     public List<ItemTypeResponse> getItemTypes() {
@@ -130,6 +133,8 @@ public class DictionaryService {
     @Transactional
     public ItemTypeResponse createItemType(CreateItemTypeRequest request) {
 
+        estimateAccessService.requireEstimateDictionaryManageAccess();
+
         String code = normalizeCode(request.getCode());
 
         if (itemTypeRepository.existsByCodeAndIsDeletedFalse(code)) {
@@ -156,6 +161,8 @@ public class DictionaryService {
     @Transactional
     public ItemTypeResponse updateItemType(UUID itemTypeId, UpdateItemTypeRequest request) {
 
+        estimateAccessService.requireEstimateDictionaryManageAccess();
+        
         ItemType itemType = itemTypeRepository.findById(itemTypeId)
                 .filter(existing -> !existing.getIsDeleted())
                 .orElseThrow(() -> new NotFoundException("Item type not found"));
@@ -194,6 +201,8 @@ public class DictionaryService {
     @Transactional
     public void deleteItemType(UUID itemTypeId) {
 
+        estimateAccessService.requireEstimateDictionaryManageAccess();
+
         ItemType itemType = itemTypeRepository.findById(itemTypeId)
                 .filter(existing -> !existing.getIsDeleted())
                 .orElseThrow(() -> new NotFoundException("Item type not found"));
@@ -218,6 +227,8 @@ public class DictionaryService {
 
     @Transactional
     public CostElementResponse createCostElement(CreateCostElementRequest request) {
+
+        estimateAccessService.requireEstimateDictionaryManageAccess();
 
         String code = normalizeCode(request.getCode());
 
@@ -246,6 +257,8 @@ public class DictionaryService {
     public CostElementResponse updateCostElement(
             UUID costElementId,
             UpdateCostElementRequest request) {
+
+        estimateAccessService.requireEstimateDictionaryManageAccess();
 
         CostElement costElement = costElementRepository.findById(costElementId)
                 .filter(existing -> !existing.getIsDeleted())
@@ -287,6 +300,8 @@ public class DictionaryService {
     @Transactional
     public void deleteCostElement(UUID costElementId) {
 
+        estimateAccessService.requireEstimateDictionaryManageAccess();
+
         CostElement costElement = costElementRepository.findById(costElementId)
                 .filter(existing -> !existing.getIsDeleted())
                 .orElseThrow(() -> new NotFoundException("Cost element not found"));
@@ -307,6 +322,8 @@ public class DictionaryService {
 
     @Transactional
     public CostRateResponse createCostRate(CreateCostRateRequest request) {
+
+        estimateAccessService.requireEstimateDictionaryManageAccess();
 
         String code = normalizeCode(request.getCode());
 
@@ -337,6 +354,8 @@ public class DictionaryService {
     public CostRateResponse updateCostRate(
             UUID costRateId,
             UpdateCostRateRequest request) {
+
+        estimateAccessService.requireEstimateDictionaryManageAccess();
 
         CostRate costRate = costRateRepository.findById(costRateId)
                 .filter(existing -> !existing.getIsDeleted())
@@ -384,6 +403,8 @@ public class DictionaryService {
     @Transactional
     public void deleteCostRate(UUID costRateId) {
 
+        estimateAccessService.requireEstimateDictionaryManageAccess();
+
         CostRate costRate = costRateRepository.findById(costRateId)
                 .filter(existing -> !existing.getIsDeleted())
                 .orElseThrow(() -> new NotFoundException("Cost rate not found"));
@@ -404,6 +425,8 @@ public class DictionaryService {
 
     @Transactional
     public TaxRateResponse createTaxRate(CreateTaxRateRequest request) {
+
+        estimateAccessService.requireEstimateDictionaryManageAccess();
 
         String code = normalizeCode(request.getCode());
 
@@ -435,6 +458,8 @@ public class DictionaryService {
 
     @Transactional
     public TaxRateResponse updateTaxRate(UUID taxRateId, UpdateTaxRateRequest request) {
+
+        estimateAccessService.requireEstimateDictionaryManageAccess();
 
         TaxRate taxRate = taxRateRepository.findById(taxRateId)
                 .filter(existing -> !existing.getIsDeleted())
@@ -494,6 +519,8 @@ public class DictionaryService {
 
     @Transactional
     public void deleteTaxRate(UUID taxRateId) {
+
+        estimateAccessService.requireEstimateDictionaryManageAccess();
 
         TaxRate taxRate = taxRateRepository.findById(taxRateId)
                 .filter(existing -> !existing.getIsDeleted())
