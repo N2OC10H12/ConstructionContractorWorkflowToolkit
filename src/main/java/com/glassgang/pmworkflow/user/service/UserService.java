@@ -55,7 +55,10 @@ public class UserService {
     public List<UserResponse> getProjectOwnerCandidates() {
         requireAdmin();
 
-        return appUserRepository.findByRoleOrderByUsernameAsc(Role.PM.name())
+        return appUserRepository.findByRoleInOrderByUsernameAsc(
+                List.of(
+                        Role.PM.name(),
+                        Role.PM_MANAGER.name()))
                 .stream()
                 .map(this::toResponse)
                 .toList();

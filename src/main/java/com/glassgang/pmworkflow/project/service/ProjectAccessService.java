@@ -3,8 +3,7 @@ package com.glassgang.pmworkflow.project.service;
 import com.glassgang.pmworkflow.common.exception.ForbiddenException;
 import com.glassgang.pmworkflow.common.util.CurrentUserUtil;
 import com.glassgang.pmworkflow.project.entity.Project;
-import com.glassgang.pmworkflow.user.entity.AppUser;
-import org.springframework.security.core.context.SecurityContextHolder;
+import com.glassgang.pmworkflow.user.entity.Role;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -16,26 +15,16 @@ public class ProjectAccessService {
         this.currentUserUtil = currentUserUtil;
     }
 
-    private AppUser getCurrentUser() {
-        Object principal = SecurityContextHolder.getContext()
-                .getAuthentication()
-                .getPrincipal();
-
-        if (principal instanceof AppUser user) {
-            return user;
-        }
-
-        throw new ForbiddenException("Unauthenticated");
-    }
-
     public void requireProjectViewAccess(Project project) {
-        AppUser user = getCurrentUser();
+        Role role = currentUserUtil.getCurrentRole();
 
-        if (isAdmin(user) || isSupervisor(user)) {
+        if (role.canViewAllProjects()) {
             return;
         }
 
-        if (isPm(user) && project.getOwner().getId().equals(user.getId())) {
+        if (role.canWorkOwnProjects()
+                && project.getOwner() != null
+                && project.getOwner().getId().equals(currentUserUtil.getCurrentUserId())) {
             return;
         }
 
@@ -43,28 +32,28 @@ public class ProjectAccessService {
     }
 
     public void requireProjectEditAccess(Project project) {
-        AppUser user = getCurrentUser();
+        Role role = currentUserUtil.getCurrentRole();
 
-        if (isAdmin(user)) {
+        if (role.isAdmin()) {
             return;
         }
 
-        if (isPm(user) && project.getOwner().getId().equals(user.getId())) {
+        if (role.canWorkOwnProjects()
+                && project.getOwner() != null
+                && project.getOwner().getId().equals(currentUserUtil.getCurrentUserId())) {
             return;
         }
 
         throw new ForbiddenException("No edit access to project");
     }
 
-    private boolean isAdmin(AppUser user) {
-        return "ADMIN".equalsIgnoreCase(user.getRole());
-    }
+    public void requireProjectManagementAccess() {
+        Role role = currentUserUtil.getCurrentRole();
 
-    private boolean isSupervisor(AppUser user) {
-        return "SUPERVISOR".equalsIgnoreCase(user.getRole());
-    }
+        if (role.canManageProjects()) {
+            return;
+        }
 
-    private boolean isPm(AppUser user) {
-        return "PM".equalsIgnoreCase(user.getRole());
+        throw new ForbiddenException("Project management access required");
     }
 }

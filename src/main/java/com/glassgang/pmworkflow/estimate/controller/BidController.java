@@ -34,6 +34,11 @@ public class BidController {
         return bidService.getBid(bidId);
     }
 
+    @GetMapping
+    public List<BidResponse> getBids() {
+        return bidService.getBids();
+    }
+
     @PostMapping
     public BidResponse createBid(@Valid @RequestBody CreateBidRequest request) {
         return bidService.createBid(request);

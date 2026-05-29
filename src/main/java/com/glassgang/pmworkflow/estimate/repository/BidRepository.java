@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.List;
 
 public interface BidRepository extends JpaRepository<Bid, UUID> {
 
@@ -13,4 +14,8 @@ public interface BidRepository extends JpaRepository<Bid, UUID> {
     Optional<Bid> findByJobNumberAndIsDeletedFalse(String jobNumber);
 
     Optional<Bid> findByBidIdAndIsDeletedFalse(UUID bidId);
+
+    List<Bid> findByIsDeletedFalseOrderByCreatedAtUtcDesc();
+
+    List<Bid> findByCreatedByUserIdAndIsDeletedFalseOrderByCreatedAtUtcDesc(UUID createdByUserId);
 }

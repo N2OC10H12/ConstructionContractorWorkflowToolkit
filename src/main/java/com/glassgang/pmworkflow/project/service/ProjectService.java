@@ -1,36 +1,38 @@
 package com.glassgang.pmworkflow.project.service;
 
-import com.glassgang.pmworkflow.audit.service.AuditService;
-import com.glassgang.pmworkflow.project.repository.projection.ProjectSummaryFlatRow;
-import com.glassgang.pmworkflow.project.dto.RenameProjectRequest;
 import com.glassgang.pmworkflow.common.exception.BadRequestException;
 import com.glassgang.pmworkflow.common.exception.ForbiddenException;
-import com.glassgang.pmworkflow.project.dto.CreateProjectRequest;
-import com.glassgang.pmworkflow.project.dto.UpdateStepDeadlineRequest;
-import com.glassgang.pmworkflow.project.repository.ProjectStepRepository;
-import com.glassgang.pmworkflow.project.repository.ProjectSubstepRepository;
-import com.glassgang.pmworkflow.user.entity.AppUser;
-import com.glassgang.pmworkflow.user.repository.AppUserRepository;
-import com.glassgang.pmworkflow.workflow.entity.WorkflowTemplate;
-import com.glassgang.pmworkflow.workflow.repository.WorkflowTemplateRepository;
 import com.glassgang.pmworkflow.common.exception.NotFoundException;
+import com.glassgang.pmworkflow.common.util.CurrentUserUtil;
+import com.glassgang.pmworkflow.audit.service.AuditService;
 import com.glassgang.pmworkflow.file.repository.SubstepFileRepository;
 import com.glassgang.pmworkflow.note.repository.SubstepNoteRepository;
+import com.glassgang.pmworkflow.project.dto.CreateProjectRequest;
 import com.glassgang.pmworkflow.project.dto.ProjectDetailsResponse;
 import com.glassgang.pmworkflow.project.dto.ProjectOwnerResponse;
 import com.glassgang.pmworkflow.project.dto.ProjectStepSummaryResponse;
 import com.glassgang.pmworkflow.project.dto.ProjectSubstepResponse;
+import com.glassgang.pmworkflow.project.dto.ProjectSummaryResponse;
+import com.glassgang.pmworkflow.project.dto.RenameProjectRequest;
+import com.glassgang.pmworkflow.project.dto.UpdateStepDeadlineRequest;
 import com.glassgang.pmworkflow.project.entity.ComputedStatus;
 import com.glassgang.pmworkflow.project.entity.Project;
-import com.glassgang.pmworkflow.project.repository.ProjectRepository;
-import com.glassgang.pmworkflow.project.dto.ProjectSummaryResponse;
 import com.glassgang.pmworkflow.project.entity.ProjectStep;
-import com.glassgang.pmworkflow.workflow.entity.WorkflowTemplateStep;
 import com.glassgang.pmworkflow.project.entity.ProjectSubstep;
+import com.glassgang.pmworkflow.project.repository.ProjectRepository;
+import com.glassgang.pmworkflow.project.repository.ProjectStepRepository;
+import com.glassgang.pmworkflow.project.repository.ProjectSubstepRepository;
+import com.glassgang.pmworkflow.project.repository.projection.ProjectSummaryFlatRow;
+import com.glassgang.pmworkflow.user.entity.AppUser;
+import com.glassgang.pmworkflow.user.entity.Role;
+import com.glassgang.pmworkflow.user.repository.AppUserRepository;
+import com.glassgang.pmworkflow.workflow.entity.WorkflowTemplate;
+import com.glassgang.pmworkflow.workflow.entity.WorkflowTemplateStep;
 import com.glassgang.pmworkflow.workflow.entity.WorkflowTemplateSubstep;
+import com.glassgang.pmworkflow.workflow.repository.WorkflowTemplateRepository;
 
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -62,6 +64,7 @@ public class ProjectService {
     private final ProjectStatusService projectStatusService;
     private final SubstepNoteRepository substepNoteRepository;
     private final SubstepFileRepository substepFileRepository;
+    private final CurrentUserUtil currentUserUtil;
 
     public ProjectService(ProjectRepository projectRepository,
             ProjectMapper projectMapper,
@@ -73,7 +76,8 @@ public class ProjectService {
             AuditService auditService,
             ProjectStatusService projectStatusService,
             SubstepNoteRepository substepNoteRepository,
-            SubstepFileRepository substepFileRepository) {
+            SubstepFileRepository substepFileRepository,
+            CurrentUserUtil currentUserUtil) {
         this.projectRepository = projectRepository;
         this.projectMapper = projectMapper;
         this.workflowTemplateRepository = workflowTemplateRepository;
@@ -85,17 +89,8 @@ public class ProjectService {
         this.projectStatusService = projectStatusService;
         this.substepNoteRepository = substepNoteRepository;
         this.substepFileRepository = substepFileRepository;
+        this.currentUserUtil = currentUserUtil;
     }
-
-    // @Transactional(readOnly = true)
-    // public ProjectDetailsResponse getProject(UUID projectId) {
-    // Project project = projectRepository.findWithStepsById(projectId)
-    // .orElseThrow(() -> new NotFoundException("Project not found"));
-    // projectAccessService.requireProjectViewAccess(project);
-    // project.getSteps().forEach(step -> step.getSubsteps().size());
-
-    // return projectMapper.toDetails(project);
-    // }
 
     @Transactional(readOnly = true)
     public ProjectDetailsResponse getProject(UUID projectId) {
@@ -129,24 +124,17 @@ public class ProjectService {
     @Transactional(readOnly = true)
     public List<ProjectSummaryResponse> getProjects() {
 
-        AppUser user = (AppUser) SecurityContextHolder
-                .getContext()
-                .getAuthentication()
-                .getPrincipal();
+        Role role = currentUserUtil.getCurrentRole();
+        UUID currentUserId = currentUserUtil.getCurrentUserId();
 
         List<ProjectSummaryFlatRow> rows;
 
-        if ("ADMIN".equalsIgnoreCase(user.getRole()) ||
-                "SUPERVISOR".equalsIgnoreCase(user.getRole())) {
-
+        if (role.canViewAllProjects()) {
             rows = projectRepository.findAllProjectSummaryFlatRows();
-
-        } else if ("PM".equalsIgnoreCase(user.getRole())) {
-
-            rows = projectRepository.findProjectSummaryFlatRowsByOwnerId(user.getId());
-
+        } else if (role.isPm()) {
+            rows = projectRepository.findProjectSummaryFlatRowsByOwnerId(currentUserId);
         } else {
-            throw new ForbiddenException("Unknown role");
+            throw new ForbiddenException("No access to projects");
         }
 
         return buildProjectSummariesFromFlatRows(rows);
@@ -159,28 +147,24 @@ public class ProjectService {
             throw new BadRequestException("Project name is required");
         }
 
-        AppUser currentUser = (AppUser) SecurityContextHolder
-                .getContext()
-                .getAuthentication()
-                .getPrincipal();
+        Role role = currentUserUtil.getCurrentRole();
+        AppUser currentUser = currentUserUtil.getCurrentUser();
 
         AppUser owner;
 
-        if ("ADMIN".equalsIgnoreCase(currentUser.getRole())) {
-
+        if (role.isAdmin() || role.isPmManager()) {
             if (request.getOwnerUserId() != null) {
                 owner = appUserRepository.findById(request.getOwnerUserId())
                         .orElseThrow(() -> new NotFoundException("Owner user not found"));
+
+                validateProjectOwnerRole(owner);
             } else {
                 owner = currentUser;
             }
-
-        } else if ("PM".equalsIgnoreCase(currentUser.getRole())) {
-
+        } else if (role.isPm()) {
             owner = currentUser;
-
         } else {
-            throw new ForbiddenException("Supervisor cannot create project");
+            throw new ForbiddenException("No access to create project");
         }
 
         WorkflowTemplate template = workflowTemplateRepository.findByIsDefaultTrue()
@@ -472,5 +456,15 @@ public class ProjectService {
         }
 
         return new ArrayList<>(projectMap.values());
+    }
+
+    private void validateProjectOwnerRole(AppUser owner) {
+        Role ownerRole = Role.from(owner.getRole());
+
+        if (ownerRole.isPm() || ownerRole.isPmManager()) {
+            return;
+        }
+
+        throw new BadRequestException("Project owner must have PM or PM_MANAGER role");
     }
 }
