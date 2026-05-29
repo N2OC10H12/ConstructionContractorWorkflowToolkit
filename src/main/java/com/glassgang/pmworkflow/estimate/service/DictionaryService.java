@@ -12,6 +12,7 @@ import com.glassgang.pmworkflow.estimate.entity.CostElement;
 import com.glassgang.pmworkflow.estimate.entity.CostRate;
 import com.glassgang.pmworkflow.estimate.entity.ItemType;
 import com.glassgang.pmworkflow.estimate.entity.TaxRate;
+import com.glassgang.pmworkflow.estimate.repository.BidRevisionItemCostRepository;
 import com.glassgang.pmworkflow.estimate.repository.BidRevisionItemRepository;
 import com.glassgang.pmworkflow.estimate.repository.CostElementRepository;
 import com.glassgang.pmworkflow.estimate.repository.CostRateRepository;
@@ -39,18 +40,21 @@ public class DictionaryService {
     private final CostElementRepository costElementRepository;
     private final CostRateRepository costRateRepository;
     private final BidRevisionItemRepository bidRevisionItemRepository;
-    
+    private final BidRevisionItemCostRepository bidRevisionItemCostRepository;
+
     public DictionaryService(
             ItemTypeRepository itemTypeRepository,
             TaxRateRepository taxRateRepository,
             CostElementRepository costElementRepository,
             CostRateRepository costRateRepository,
-            BidRevisionItemRepository bidRevisionItemRepository) {
+            BidRevisionItemRepository bidRevisionItemRepository,
+            BidRevisionItemCostRepository bidRevisionItemCostRepository) {
         this.itemTypeRepository = itemTypeRepository;
         this.taxRateRepository = taxRateRepository;
         this.costElementRepository = costElementRepository;
         this.costRateRepository = costRateRepository;
         this.bidRevisionItemRepository = bidRevisionItemRepository;
+        this.bidRevisionItemCostRepository = bidRevisionItemCostRepository;
     }
 
     public List<ItemTypeResponse> getItemTypes() {
@@ -287,6 +291,10 @@ public class DictionaryService {
                 .filter(existing -> !existing.getIsDeleted())
                 .orElseThrow(() -> new NotFoundException("Cost element not found"));
 
+        if (bidRevisionItemCostRepository.existsByCostElement_CostElementIdAndIsDeletedFalse(costElementId)) {
+            throw new BusinessRuleException("Cannot delete cost element because it is used by estimate costs");
+        }
+
         LocalDateTime now = LocalDateTime.now();
 
         costElement.setIsActive(false);
@@ -379,6 +387,10 @@ public class DictionaryService {
         CostRate costRate = costRateRepository.findById(costRateId)
                 .filter(existing -> !existing.getIsDeleted())
                 .orElseThrow(() -> new NotFoundException("Cost rate not found"));
+
+        if (bidRevisionItemCostRepository.existsByCostRate_CostRateIdAndIsDeletedFalse(costRateId)) {
+            throw new BusinessRuleException("Cannot delete cost rate because it is used by estimate costs");
+        }
 
         LocalDateTime now = LocalDateTime.now();
 

@@ -3,10 +3,14 @@ package com.glassgang.pmworkflow.user.entity;
 import java.util.Arrays;
 
 public enum Role {
+    ADMIN,
     PM,
+    PROJECT_VIEWER,
     SUPERVISOR,
-    ADMIN;
-
+    ESTIMATOR,
+    ESTIMATOR_SUPERVISOR,
+    ESTIMATE_VIEWER;
+    
     public static Role from(String value) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException("Role is required");
