@@ -7,6 +7,7 @@ import com.glassgang.pmworkflow.estimate.dto.CreateBidFromRevisionRequest;
 import com.glassgang.pmworkflow.estimate.dto.CreateBidRequest;
 import com.glassgang.pmworkflow.estimate.dto.CreateBidRevisionItemCostRequest;
 import com.glassgang.pmworkflow.estimate.dto.CreateBidRevisionRequest;
+import com.glassgang.pmworkflow.estimate.dto.UpdateBidRequest;
 import com.glassgang.pmworkflow.estimate.dto.UpdateBidRevisionItemCostRequest;
 import com.glassgang.pmworkflow.estimate.dto.UpdateBidRevisionItemRequest;
 import com.glassgang.pmworkflow.estimate.service.BidService;
@@ -43,6 +44,14 @@ public class BidController {
     @PostMapping
     public BidResponse createBid(@Valid @RequestBody CreateBidRequest request) {
         return bidService.createBid(request);
+    }
+
+    @PatchMapping("/{bidId}")
+    public BidResponse updateBid(
+            @PathVariable UUID bidId,
+            @Valid @RequestBody UpdateBidRequest request) {
+
+        return bidService.updateBid(bidId, request);
     }
 
     @GetMapping("/revisions/{bidRevisionId}")

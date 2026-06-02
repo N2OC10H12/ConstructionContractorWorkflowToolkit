@@ -10,6 +10,7 @@ import com.glassgang.pmworkflow.estimate.dto.CreateBidRequest;
 import com.glassgang.pmworkflow.estimate.dto.CreateBidRevisionItemCostRequest;
 import com.glassgang.pmworkflow.estimate.dto.CreateBidRevisionItemRequest;
 import com.glassgang.pmworkflow.estimate.dto.CreateBidRevisionRequest;
+import com.glassgang.pmworkflow.estimate.dto.UpdateBidRequest;
 import com.glassgang.pmworkflow.estimate.dto.UpdateBidRevisionItemCostRequest;
 import com.glassgang.pmworkflow.estimate.dto.UpdateBidRevisionItemRequest;
 import com.glassgang.pmworkflow.estimate.entity.Bid;
@@ -153,6 +154,60 @@ public class BidService {
     }
 
     @Transactional
+    public BidResponse updateBid(UUID bidId, UpdateBidRequest request) {
+
+        Bid bid = bidRepository
+                .findByBidIdAndIsDeletedFalse(bidId)
+                .orElseThrow(() -> new NotFoundException("Bid not found"));
+
+        estimateAccessService.requireBidEditAccess(bid);
+
+        ensureBidCanBeChanged(bid);
+
+        BidRevision currentRevision = bid.getCurrentRevision();
+
+        if (currentRevision == null) {
+            throw new BusinessRuleException("Bid current revision is missing");
+        }
+
+        ensureCurrentRevisionCanBeChanged(bid, currentRevision);
+
+        if (request.getCustomerId() != null) {
+            Customer customer = customerRepository
+                    .findByCustomerIdAndIsDeletedFalse(request.getCustomerId())
+                    .orElseThrow(() -> new NotFoundException("Customer not found"));
+
+            bid.setCustomer(customer);
+        }
+
+        if (request.getJobName() != null) {
+            if (request.getJobName().isBlank()) {
+                throw new BadRequestException("Job name cannot be blank");
+            }
+
+            bid.setJobName(request.getJobName().trim());
+        }
+
+        if (request.getDescription() != null) {
+            bid.setDescription(request.getDescription());
+        }
+
+        if (request.getDepartmentCode() != null) {
+            bid.setDepartmentCode(request.getDepartmentCode());
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        UUID currentUserId = currentUserUtil.getCurrentUserId();
+
+        bid.setUpdatedAtUtc(now);
+        bid.setUpdatedByUserId(currentUserId);
+
+        Bid savedBid = bidRepository.save(bid);
+
+        return bidMapper.toBidResponse(savedBid);
+    }
+
+    @Transactional
     public BidResponse createBidFromRevision(
             UUID sourceBidRevisionId,
             CreateBidFromRevisionRequest request) {
@@ -288,7 +343,6 @@ public class BidService {
         return bidMapper.toBidRevisionResponse(bidRevision);
     }
 
-    
     @Transactional(readOnly = true)
     public List<BidRevisionResponse> getBidRevisions(UUID bidId) {
 
@@ -631,7 +685,6 @@ public class BidService {
         return bidMapper.toBidRevisionItemResponse(savedItem);
     }
 
-    
     @Transactional(readOnly = true)
     public List<BidRevisionItemResponse> getRevisionItems(UUID bidRevisionId) {
 
@@ -884,7 +937,6 @@ public class BidService {
         return bidMapper.toBidRevisionItemCostResponse(savedCost);
     }
 
-    
     @Transactional(readOnly = true)
     public List<BidRevisionItemCostResponse> getItemCosts(UUID bidRevisionItemId) {
 
