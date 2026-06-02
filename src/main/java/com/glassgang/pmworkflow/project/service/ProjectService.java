@@ -14,6 +14,7 @@ import com.glassgang.pmworkflow.project.dto.ProjectStepSummaryResponse;
 import com.glassgang.pmworkflow.project.dto.ProjectSubstepResponse;
 import com.glassgang.pmworkflow.project.dto.ProjectSummaryResponse;
 import com.glassgang.pmworkflow.project.dto.RenameProjectRequest;
+import com.glassgang.pmworkflow.project.dto.UpdateProjectOwnerRequest;
 import com.glassgang.pmworkflow.project.dto.UpdateStepDeadlineRequest;
 import com.glassgang.pmworkflow.project.entity.ComputedStatus;
 import com.glassgang.pmworkflow.project.entity.Project;
@@ -356,6 +357,49 @@ public class ProjectService {
                 project.getId(),
                 "name=" + oldName,
                 "name=" + newName);
+
+        entityManager.flush();
+        entityManager.clear();
+
+        return getProject(projectId);
+    }
+
+    @Transactional
+    public ProjectDetailsResponse updateProjectOwner(UUID projectId, UpdateProjectOwnerRequest request) {
+
+        projectAccessService.requireProjectManagementAccess();
+
+        if (request.getOwnerUserId() == null) {
+            throw new BadRequestException("Owner user is required");
+        }
+
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new NotFoundException("Project not found"));
+
+        AppUser newOwner = appUserRepository.findById(request.getOwnerUserId())
+                .orElseThrow(() -> new NotFoundException("Owner user not found"));
+
+        validateProjectOwnerRole(newOwner);
+
+        AppUser oldOwner = project.getOwner();
+
+        if (oldOwner != null && oldOwner.getId().equals(newOwner.getId())) {
+            return getProject(projectId);
+        }
+
+        project.setOwner(newOwner);
+
+        projectRepository.save(project);
+
+        auditService.log(
+                project.getId(),
+                "PROJECT_OWNER_CHANGED",
+                "PROJECT",
+                project.getId(),
+                oldOwner != null
+                        ? "ownerUserId=" + oldOwner.getId() + ", username=" + oldOwner.getUsername()
+                        : null,
+                "ownerUserId=" + newOwner.getId() + ", username=" + newOwner.getUsername());
 
         entityManager.flush();
         entityManager.clear();

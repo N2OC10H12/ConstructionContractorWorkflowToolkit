@@ -35,8 +35,9 @@ public class BidController {
     }
 
     @GetMapping
-    public List<BidResponse> getBids() {
-        return bidService.getBids();
+    public List<BidResponse> getBids(
+            @RequestParam(required = false, defaultValue = "all") String scope) {
+        return bidService.getBids(scope);
     }
 
     @PostMapping

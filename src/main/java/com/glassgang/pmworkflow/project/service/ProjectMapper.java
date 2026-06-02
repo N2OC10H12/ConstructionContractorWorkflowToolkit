@@ -21,12 +21,18 @@ public class ProjectMapper {
     public ProjectDetailsResponse toDetails(
             Project project,
             Set<UUID> noteSubstepIds,
-            Set<UUID> fileSubstepIds
-    ) {
+            Set<UUID> fileSubstepIds) {
         ProjectDetailsResponse dto = new ProjectDetailsResponse();
 
         dto.setId(project.getId());
         dto.setName(project.getName());
+
+        ProjectOwnerResponse ownerDto = new ProjectOwnerResponse();
+        ownerDto.setId(project.getOwner().getId());
+        ownerDto.setUsername(project.getOwner().getUsername());
+        ownerDto.setRole(project.getOwner().getRole());
+        dto.setOwner(ownerDto);
+        
         dto.setStatus(statusService.computeProjectStatus(project));
         dto.setPlanningComplete(statusService.isPlanningComplete(project));
         dto.setProjectDeadline(project.getProjectDeadline());
@@ -46,8 +52,7 @@ public class ProjectMapper {
     private ProjectStepResponse toStep(
             ProjectStep step,
             Set<UUID> noteSubstepIds,
-            Set<UUID> fileSubstepIds
-    ) {
+            Set<UUID> fileSubstepIds) {
         ProjectStepResponse dto = new ProjectStepResponse();
 
         dto.setId(step.getId());
@@ -69,8 +74,7 @@ public class ProjectMapper {
     private ProjectSubstepResponse toSubstep(
             ProjectSubstep substep,
             Set<UUID> noteSubstepIds,
-            Set<UUID> fileSubstepIds
-    ) {
+            Set<UUID> fileSubstepIds) {
         ProjectSubstepResponse dto = new ProjectSubstepResponse();
 
         dto.setId(substep.getId());

@@ -16,9 +16,10 @@ public class ProjectDetailsResponse {
     private ComputedStatus status;
     private UUID id;
     private String name;
+    private ProjectOwnerResponse owner;
     private LocalDate planningDeadline;
     private LocalDate projectDeadline;
     private LocalDateTime createdAt;
     private Boolean planningComplete;
     private List<ProjectStepResponse> steps;
-    }
+}

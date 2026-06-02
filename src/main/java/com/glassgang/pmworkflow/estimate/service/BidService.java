@@ -234,6 +234,7 @@ public class BidService {
         return bidMapper.toBidResponse(savedBid);
     }
 
+    @Transactional(readOnly = true)
     public BidResponse getBid(UUID bidId) {
         Bid bid = bidRepository
                 .findByBidIdAndIsDeletedFalse(bidId)
@@ -244,20 +245,26 @@ public class BidService {
         return bidMapper.toBidResponse(bid);
     }
 
-    public List<BidResponse> getBids() {
+    @Transactional(readOnly = true)
+    public List<BidResponse> getBids(String scope) {
 
-        if (currentUserUtil.isCurrentUserAdmin()
+        boolean canAccessEstimates = currentUserUtil.isCurrentUserAdmin()
+                || currentUserUtil.isCurrentUserEstimator()
                 || currentUserUtil.isCurrentUserEstimateManager()
-                || currentUserUtil.isCurrentUserEstimateViewer()) {
+                || currentUserUtil.isCurrentUserEstimateViewer();
 
+        if (!canAccessEstimates) {
+            throw new ForbiddenException("No access to estimates");
+        }
+
+        if (scope == null || scope.isBlank() || scope.equalsIgnoreCase("all")) {
             return bidRepository.findByIsDeletedFalseOrderByCreatedAtUtcDesc()
                     .stream()
                     .map(bidMapper::toBidResponse)
                     .toList();
         }
 
-        if (currentUserUtil.isCurrentUserEstimator()) {
-
+        if (scope.equalsIgnoreCase("mine")) {
             UUID currentUserId = currentUserUtil.getCurrentUserId();
 
             return bidRepository
@@ -267,9 +274,10 @@ public class BidService {
                     .toList();
         }
 
-        throw new ForbiddenException("No access to estimates");
+        throw new BadRequestException("Invalid bid scope");
     }
 
+    @Transactional(readOnly = true)
     public BidRevisionResponse getBidRevision(UUID bidRevisionId) {
         BidRevision bidRevision = bidRevisionRepository
                 .findByBidRevisionIdAndIsDeletedFalse(bidRevisionId)
@@ -280,6 +288,8 @@ public class BidService {
         return bidMapper.toBidRevisionResponse(bidRevision);
     }
 
+    
+    @Transactional(readOnly = true)
     public List<BidRevisionResponse> getBidRevisions(UUID bidId) {
 
         Bid bid = bidRepository.findByBidIdAndIsDeletedFalse(bidId)
@@ -621,11 +631,15 @@ public class BidService {
         return bidMapper.toBidRevisionItemResponse(savedItem);
     }
 
+    
+    @Transactional(readOnly = true)
     public List<BidRevisionItemResponse> getRevisionItems(UUID bidRevisionId) {
 
-        bidRevisionRepository
+        BidRevision revision = bidRevisionRepository
                 .findByBidRevisionIdAndIsDeletedFalse(bidRevisionId)
                 .orElseThrow(() -> new NotFoundException("Bid revision not found"));
+
+        estimateAccessService.requireBidViewAccess(revision.getBid());
 
         return bidRevisionItemRepository
                 .findByBidRevision_BidRevisionIdAndIsDeletedFalseOrderByDisplayOrderAsc(bidRevisionId)
@@ -653,8 +667,6 @@ public class BidService {
 
         UUID currentUserId = currentUserUtil.getCurrentUserId();
 
-        bidRevisionItemRepository.save(item);
-
         List<BidRevisionItemCost> activeCosts = bidRevisionItemCostRepository
                 .findByBidRevisionItem_BidRevisionItemIdAndIsDeletedFalse(
                         item.getBidRevisionItemId());
@@ -662,20 +674,23 @@ public class BidService {
         for (BidRevisionItemCost cost : activeCosts) {
             cost.setIsDeleted(true);
             cost.setDeletedAtUtc(now);
+            cost.setDeletedByUserId(currentUserId);
             cost.setUpdatedAtUtc(now);
+            cost.setUpdatedByUserId(currentUserId);
         }
 
         bidRevisionItemCostRepository.saveAll(activeCosts);
 
         item.setIsDeleted(true);
         item.setDeletedAtUtc(now);
-        item.setUpdatedAtUtc(now);
         item.setDeletedByUserId(currentUserId);
+        item.setUpdatedAtUtc(now);
         item.setUpdatedByUserId(currentUserId);
 
         bidRevisionItemRepository.save(item);
 
         pricingService.recalculateRevisionTotals(revision);
+
         revision.setUpdatedAtUtc(now);
         revision.setUpdatedByUserId(currentUserId);
 
@@ -869,11 +884,15 @@ public class BidService {
         return bidMapper.toBidRevisionItemCostResponse(savedCost);
     }
 
+    
+    @Transactional(readOnly = true)
     public List<BidRevisionItemCostResponse> getItemCosts(UUID bidRevisionItemId) {
 
-        bidRevisionItemRepository
+        BidRevisionItem item = bidRevisionItemRepository
                 .findByBidRevisionItemIdAndIsDeletedFalse(bidRevisionItemId)
                 .orElseThrow(() -> new NotFoundException("Bid revision item not found"));
+
+        estimateAccessService.requireBidViewAccess(item.getBidRevision().getBid());
 
         return bidRevisionItemCostRepository
                 .findByBidRevisionItem_BidRevisionItemIdAndIsDeletedFalseOrderByDisplayOrderAsc(

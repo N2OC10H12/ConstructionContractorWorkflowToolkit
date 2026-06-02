@@ -14,6 +14,7 @@ import com.glassgang.pmworkflow.estimate.enums.DepartmentCode;
 public class BidResponse {
     private UUID bidId;
     private UUID customerId;
+    private BidOwnerResponse owner;
     private String bidNumber;
     private String jobNumber;
     private String jobName;

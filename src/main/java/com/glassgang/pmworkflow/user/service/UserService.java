@@ -53,7 +53,7 @@ public class UserService {
     }
 
     public List<UserResponse> getProjectOwnerCandidates() {
-        requireAdmin();
+        requireAdminOrPmManager();
 
         return appUserRepository.findByRoleInOrderByUsernameAsc(
                 List.of(
@@ -247,6 +247,13 @@ public class UserService {
     private void requireAdmin() {
         if (!currentUserUtil.isCurrentUserAdmin()) {
             throw new ForbiddenException("Admin access required");
+        }
+    }
+
+    private void requireAdminOrPmManager() {
+        if (!currentUserUtil.isCurrentUserAdmin()
+                && !currentUserUtil.isCurrentUserPmManager()) {
+            throw new ForbiddenException("Admin or PM Manager access required");
         }
     }
 
