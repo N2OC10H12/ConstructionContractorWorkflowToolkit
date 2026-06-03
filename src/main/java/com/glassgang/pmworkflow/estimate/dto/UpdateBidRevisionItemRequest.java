@@ -29,6 +29,9 @@ public class UpdateBidRevisionItemRequest {
     @Size(max = 4000, message = "internalNote must be <= 4000 characters")
     private String internalNote;
 
+    @Size(max = 4000, message = "customerNote must be <= 4000 characters")
+    private String customerNote;
+
     private Boolean isOptional;
 
     private UUID itemTypeId;
@@ -36,4 +39,10 @@ public class UpdateBidRevisionItemRequest {
     private UUID taxRateId;
 
     private CustomerDisplayMode customerDisplayMode;
+
+    @DecimalMin(value = "0.0000", message = "unitCost must be >= 0.0000")
+    private BigDecimal unitCost;
+
+    @DecimalMin(value = "0.0000", message = "markupPercent must be >= 0.0000")
+    private BigDecimal markupPercent;
 }

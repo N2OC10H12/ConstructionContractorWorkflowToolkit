@@ -9,7 +9,6 @@ import com.glassgang.pmworkflow.estimate.entity.BidRevision;
 import com.glassgang.pmworkflow.estimate.entity.BidRevisionItem;
 import com.glassgang.pmworkflow.estimate.entity.BidRevisionItemCost;
 import com.glassgang.pmworkflow.estimate.dto.BidOwnerResponse;
-import com.glassgang.pmworkflow.user.entity.AppUser;
 import com.glassgang.pmworkflow.user.repository.AppUserRepository;
 
 import org.springframework.stereotype.Component;
@@ -44,6 +43,7 @@ public class BidMapper {
                 response.setConvertedProjectId(bid.getConvertedProjectId());
                 response.setCreatedAtUtc(bid.getCreatedAtUtc());
                 response.setUpdatedAtUtc(bid.getUpdatedAtUtc());
+                response.setConstructionType(bid.getConstructionType());
 
                 return response;
         }
@@ -61,9 +61,6 @@ public class BidMapper {
                 response.setRevisionNumber(bidRevision.getRevisionNumber());
                 response.setRevisionDisplayName(bidRevision.getRevisionDisplayName());
                 response.setRevisionStatus(bidRevision.getRevisionStatus());
-
-                // response.setTaxType(bidRevision.getTaxType());
-                // response.setTaxRatePercent(bidRevision.getTaxRatePercent());
 
                 response.setSubtotalCost(bidRevision.getSubtotalCost());
                 response.setSubtotalPrice(bidRevision.getSubtotalPrice());
@@ -120,6 +117,7 @@ public class BidMapper {
                 response.setShowCustomerRow(item.getShowCustomerRow());
                 response.setShowCustomerPrice(item.getShowCustomerPrice());
                 response.setInternalNote(item.getInternalNote());
+                response.setCustomerNote(item.getCustomerNote());
 
                 response.setClonedFromItemId(
                                 item.getClonedFromItem() != null
@@ -186,13 +184,10 @@ public class BidMapper {
                 response.setMarkupPercent(cost.getMarkupPercent());
                 response.setGpmPercent(cost.getGpmPercent());
 
-                // response.setIsTaxable(cost.getIsTaxable());
-                // response.setTaxAmount(cost.getTaxAmount());
-                // response.setPriceWithTax(cost.getPriceWithTax());
-
                 response.setShowCustomer(cost.getShowCustomer());
                 response.setIsOptional(cost.getIsOptional());
                 response.setInternalNote(cost.getInternalNote());
+                response.setCustomerNote(cost.getCustomerNote());
 
                 response.setClonedFromItemCostId(
                                 cost.getClonedFromItemCost() != null

@@ -42,4 +42,13 @@ public class CreateBidRevisionItemRequest {
 
     @NotNull(message = "customerDisplayMode is required")
     private CustomerDisplayMode customerDisplayMode;
+
+    @Size(max = 4000, message = "customerNote must be <= 4000 characters")
+    private String customerNote;
+
+    @DecimalMin(value = "0.0000", message = "unitCost must be >= 0.0000")
+    private BigDecimal unitCost;
+
+    @DecimalMin(value = "0.0000", message = "markupPercent must be >= 0.0000")
+    private BigDecimal markupPercent;
 }

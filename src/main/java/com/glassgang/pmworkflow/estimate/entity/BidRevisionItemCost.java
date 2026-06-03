@@ -87,6 +87,9 @@ public class BidRevisionItemCost {
     @Column(name = "internal_note")
     private String internalNote;
 
+    @Column(name = "customer_note")
+    private String customerNote;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cloned_from_item_cost_id")
     private BidRevisionItemCost clonedFromItemCost;

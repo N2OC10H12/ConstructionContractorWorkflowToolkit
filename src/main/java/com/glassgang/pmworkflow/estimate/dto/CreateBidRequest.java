@@ -1,5 +1,6 @@
 package com.glassgang.pmworkflow.estimate.dto;
 
+import com.glassgang.pmworkflow.estimate.enums.ConstructionType;
 import com.glassgang.pmworkflow.estimate.enums.DepartmentCode;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -25,4 +26,7 @@ public class CreateBidRequest {
 
     @Size(max = 4000, message = "description must be <= 4000 characters")
     private String description;
+
+    @NotNull(message = "constructionType is required")
+    private ConstructionType constructionType;
 }
