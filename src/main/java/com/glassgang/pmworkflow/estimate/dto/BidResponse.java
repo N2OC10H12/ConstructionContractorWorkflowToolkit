@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 import com.glassgang.pmworkflow.estimate.enums.BidStatus;
+import com.glassgang.pmworkflow.estimate.enums.ConstructionType;
 import com.glassgang.pmworkflow.estimate.enums.DepartmentCode;
 
 @Getter
@@ -25,4 +26,5 @@ public class BidResponse {
     private UUID convertedProjectId;
     private LocalDateTime createdAtUtc;
     private LocalDateTime updatedAtUtc;
+    private ConstructionType constructionType;
 }

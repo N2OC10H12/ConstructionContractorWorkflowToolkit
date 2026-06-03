@@ -35,14 +35,11 @@ public class BidRevisionItemCostResponse {
     private BigDecimal markupPercent;
     private BigDecimal gpmPercent;
 
-    // private Boolean isTaxable;
-    // private BigDecimal taxAmount;
-    // private BigDecimal priceWithTax;
-
     private Boolean showCustomer;
     private Boolean isOptional;
 
     private String internalNote;
+    private String customerNote;
 
     private UUID clonedFromItemCostId;
 

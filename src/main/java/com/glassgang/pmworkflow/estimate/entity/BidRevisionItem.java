@@ -81,6 +81,9 @@ public class BidRevisionItem {
     @Column(name = "internal_note")
     private String internalNote;
 
+    @Column(name = "customer_note")
+    private String customerNote;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cloned_from_item_id")
     private BidRevisionItem clonedFromItem;

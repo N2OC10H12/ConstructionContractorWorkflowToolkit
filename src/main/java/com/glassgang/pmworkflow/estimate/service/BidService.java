@@ -119,6 +119,7 @@ public class BidService {
         bid.setUpdatedAtUtc(now);
         bid.setCreatedByUserId(currentUserId);
         bid.setUpdatedByUserId(currentUserId);
+        bid.setConstructionType(request.getConstructionType());
         bid.setIsDeleted(false);
 
         Bid savedBid = bidRepository.save(bid);
@@ -196,6 +197,10 @@ public class BidService {
             bid.setDepartmentCode(request.getDepartmentCode());
         }
 
+        if (request.getConstructionType() != null) {
+            bid.setConstructionType(request.getConstructionType());
+        }
+
         LocalDateTime now = LocalDateTime.now();
         UUID currentUserId = currentUserUtil.getCurrentUserId();
 
@@ -253,6 +258,11 @@ public class BidService {
                         savedBid.getBidNumber(),
                         savedBid.getDepartmentCode().name(),
                         0));
+
+        newBid.setConstructionType(
+                request.getConstructionType() != null
+                        ? request.getConstructionType()
+                        : sourceRevision.getBid().getConstructionType());
 
         newRevision.setRevisionStatus(RevisionStatus.DRAFT);
 
@@ -646,13 +656,16 @@ public class BidService {
         item.setQuantity(request.getQuantity());
         item.setUnitOfMeasure(request.getUnitOfMeasure());
 
-        item.setUnitCost(BigDecimal.ZERO);
+        item.setUnitCost(request.getUnitCost());
+        item.setMarkupPercent(request.getMarkupPercent());
+
         item.setUnitPrice(BigDecimal.ZERO);
         item.setTotalCost(BigDecimal.ZERO);
         item.setTotalPrice(BigDecimal.ZERO);
-
-        item.setMarkupPercent(null);
         item.setGpmPercent(null);
+
+        pricingService.recalculateItemMaterialTotals(item);
+        pricingService.recalculateItemTotals(item);
 
         item.setTaxAmount(BigDecimal.ZERO);
         item.setPriceWithTax(BigDecimal.ZERO);
@@ -660,6 +673,7 @@ public class BidService {
         item.setIsOptional(request.getIsOptional());
 
         item.setInternalNote(request.getInternalNote());
+        item.setCustomerNote(request.getCustomerNote());
 
         item.setCreatedAtUtc(now);
         item.setUpdatedAtUtc(now);
@@ -796,6 +810,10 @@ public class BidService {
             item.setInternalNote(request.getInternalNote());
         }
 
+        if (request.getCustomerNote() != null) {
+            item.setCustomerNote(request.getCustomerNote());
+        }
+
         if (request.getItemTypeId() != null) {
             ItemType itemType = getActiveItemType(request.getItemTypeId());
             item.setItemType(itemType);
@@ -810,6 +828,15 @@ public class BidService {
             item.setCustomerDisplayMode(request.getCustomerDisplayMode());
         }
 
+        if (request.getUnitCost() != null) {
+            item.setUnitCost(request.getUnitCost());
+        }
+
+        if (request.getMarkupPercent() != null) {
+            item.setMarkupPercent(request.getMarkupPercent());
+        }
+
+        pricingService.recalculateItemMaterialTotals(item);
         pricingService.recalculateItemTotals(item);
 
         LocalDateTime now = LocalDateTime.now();
@@ -895,18 +922,21 @@ public class BidService {
         cost.setRateUnitSnapshot(costRate != null ? costRate.getRateUnit().name() : null);
 
         cost.setUnitCost(request.getUnitCost());
-        cost.setUnitPrice(request.getUnitPrice());
+
+        cost.setMarkupPercent(request.getMarkupPercent());
+
+        if (request.getUnitPrice() != null) {
+            cost.setUnitPrice(request.getUnitPrice());
+        }
 
         pricingService.recalculateItemCostTotals(cost);
-
-        cost.setMarkupPercent(null);
-        cost.setGpmPercent(null);
 
         cost.setIsTaxable(true);
 
         cost.setShowCustomer(request.getShowCustomer());
         cost.setIsOptional(request.getIsOptional());
         cost.setInternalNote(request.getInternalNote());
+        cost.setCustomerNote(request.getCustomerNote());
 
         cost.setCreatedAtUtc(now);
         cost.setUpdatedAtUtc(now);
@@ -1014,6 +1044,10 @@ public class BidService {
             cost.setUnitPrice(request.getUnitPrice());
         }
 
+        if (request.getMarkupPercent() != null) {
+            cost.setMarkupPercent(request.getMarkupPercent());
+        }
+
         if (request.getShowCustomer() != null) {
             cost.setShowCustomer(request.getShowCustomer());
         }
@@ -1024,6 +1058,10 @@ public class BidService {
 
         if (request.getInternalNote() != null) {
             cost.setInternalNote(request.getInternalNote());
+        }
+
+        if (request.getCustomerNote() != null) {
+            cost.setCustomerNote(request.getCustomerNote());
         }
 
         pricingService.recalculateItemCostTotals(cost);
@@ -1271,6 +1309,7 @@ public class BidService {
         clonedItem.setShowCustomerRow(sourceItem.getShowCustomerRow());
         clonedItem.setShowCustomerPrice(sourceItem.getShowCustomerPrice());
         clonedItem.setInternalNote(sourceItem.getInternalNote());
+        clonedItem.setCustomerNote(sourceItem.getCustomerNote());
 
         clonedItem.setClonedFromItem(sourceItem);
 
@@ -1330,6 +1369,7 @@ public class BidService {
             clonedCost.setIsOptional(sourceCost.getIsOptional());
             clonedCost.setGroupName(sourceCost.getGroupName());
             clonedCost.setInternalNote(sourceCost.getInternalNote());
+            clonedCost.setCustomerNote(sourceCost.getCustomerNote());
 
             clonedCost.setClonedFromItemCost(sourceCost);
 

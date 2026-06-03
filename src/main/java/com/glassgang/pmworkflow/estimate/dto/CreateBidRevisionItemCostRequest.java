@@ -31,7 +31,6 @@ public class CreateBidRevisionItemCostRequest {
     @DecimalMin(value = "0.0000", message = "unitCost must be >= 0.0000")
     private BigDecimal unitCost;
 
-    @NotNull(message = "unitPrice is required")
     @DecimalMin(value = "0.0000", message = "unitPrice must be >= 0.0000")
     private BigDecimal unitPrice;
 
@@ -43,4 +42,10 @@ public class CreateBidRevisionItemCostRequest {
 
     @Size(max = 4000, message = "internalNote must be <= 4000 characters")
     private String internalNote;
+
+    @Size(max = 4000, message = "customerNote must be <= 4000 characters")
+    private String customerNote;
+
+    @DecimalMin(value = "0.0000", message = "markupPercent must be >= 0.0000")
+    private BigDecimal markupPercent;
 }

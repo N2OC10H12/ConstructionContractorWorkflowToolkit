@@ -1,6 +1,7 @@
 package com.glassgang.pmworkflow.estimate.entity;
 
 import com.glassgang.pmworkflow.estimate.enums.BidStatus;
+import com.glassgang.pmworkflow.estimate.enums.ConstructionType;
 import com.glassgang.pmworkflow.estimate.enums.DepartmentCode;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -70,4 +71,8 @@ public class Bid {
 
     @Column(name = "deleted_by_user_id")
     private UUID deletedByUserId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "construction_type", nullable = false, length = 50)
+    private ConstructionType constructionType;
 }
