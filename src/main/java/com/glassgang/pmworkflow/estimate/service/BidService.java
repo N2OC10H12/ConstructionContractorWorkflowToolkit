@@ -10,6 +10,8 @@ import com.glassgang.pmworkflow.estimate.dto.CreateBidRequest;
 import com.glassgang.pmworkflow.estimate.dto.CreateBidRevisionItemCostRequest;
 import com.glassgang.pmworkflow.estimate.dto.CreateBidRevisionItemRequest;
 import com.glassgang.pmworkflow.estimate.dto.CreateBidRevisionRequest;
+import com.glassgang.pmworkflow.estimate.dto.DeleteRevisionGroupItemTypeRequest;
+import com.glassgang.pmworkflow.estimate.dto.DeleteRevisionGroupRequest;
 import com.glassgang.pmworkflow.estimate.dto.UpdateBidRequest;
 import com.glassgang.pmworkflow.estimate.dto.UpdateBidRevisionItemCostRequest;
 import com.glassgang.pmworkflow.estimate.dto.UpdateBidRevisionItemRequest;
@@ -247,6 +249,11 @@ public class BidService {
         newBid.setUpdatedByUserId(currentUserId);
         newBid.setIsDeleted(false);
 
+        newBid.setConstructionType(
+                request.getConstructionType() != null
+                        ? request.getConstructionType()
+                        : sourceRevision.getBid().getConstructionType());
+
         Bid savedBid = bidRepository.save(newBid);
 
         BidRevision newRevision = new BidRevision();
@@ -258,11 +265,6 @@ public class BidService {
                         savedBid.getBidNumber(),
                         savedBid.getDepartmentCode().name(),
                         0));
-
-        newBid.setConstructionType(
-                request.getConstructionType() != null
-                        ? request.getConstructionType()
-                        : sourceRevision.getBid().getConstructionType());
 
         newRevision.setRevisionStatus(RevisionStatus.DRAFT);
 
@@ -766,6 +768,120 @@ public class BidService {
         bid.setUpdatedAtUtc(now);
         bid.setUpdatedByUserId(currentUserId);
 
+        bidRepository.save(bid);
+    }
+
+    private void softDeleteItemsWithCosts(
+            List<BidRevisionItem> items,
+            LocalDateTime now,
+            UUID currentUserId) {
+
+        for (BidRevisionItem item : items) {
+
+            List<BidRevisionItemCost> activeCosts = bidRevisionItemCostRepository
+                    .findByBidRevisionItem_BidRevisionItemIdAndIsDeletedFalse(
+                            item.getBidRevisionItemId());
+
+            for (BidRevisionItemCost cost : activeCosts) {
+                cost.setIsDeleted(true);
+                cost.setDeletedAtUtc(now);
+                cost.setDeletedByUserId(currentUserId);
+                cost.setUpdatedAtUtc(now);
+                cost.setUpdatedByUserId(currentUserId);
+            }
+
+            bidRevisionItemCostRepository.saveAll(activeCosts);
+
+            item.setIsDeleted(true);
+            item.setDeletedAtUtc(now);
+            item.setDeletedByUserId(currentUserId);
+            item.setUpdatedAtUtc(now);
+            item.setUpdatedByUserId(currentUserId);
+        }
+
+        bidRevisionItemRepository.saveAll(items);
+    }
+
+    @Transactional
+    public void deleteRevisionGroup(
+            UUID bidRevisionId,
+            DeleteRevisionGroupRequest request) {
+
+        BidRevision revision = bidRevisionRepository
+                .findByBidRevisionIdAndIsDeletedFalse(bidRevisionId)
+                .orElseThrow(() -> new NotFoundException("Bid revision not found"));
+
+        Bid bid = revision.getBid();
+
+        estimateAccessService.requireBidEditAccess(bid);
+
+        ensureBidCanBeChanged(bid);
+        ensureCurrentRevisionCanBeChanged(bid, revision);
+
+        List<BidRevisionItem> items = bidRevisionItemRepository
+                .findByBidRevision_BidRevisionIdAndGroupNameAndIsDeletedFalse(
+                        bidRevisionId,
+                        request.getGroupName());
+
+        if (items.isEmpty()) {
+            return;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        UUID currentUserId = currentUserUtil.getCurrentUserId();
+
+        softDeleteItemsWithCosts(items, now, currentUserId);
+
+        pricingService.recalculateRevisionTotals(revision);
+
+        revision.setUpdatedAtUtc(now);
+        revision.setUpdatedByUserId(currentUserId);
+        bidRevisionRepository.save(revision);
+
+        bid.setUpdatedAtUtc(now);
+        bid.setUpdatedByUserId(currentUserId);
+        bidRepository.save(bid);
+    }
+
+    @Transactional
+    public void deleteRevisionGroupItemType(
+            UUID bidRevisionId,
+            DeleteRevisionGroupItemTypeRequest request) {
+
+        BidRevision revision = bidRevisionRepository
+                .findByBidRevisionIdAndIsDeletedFalse(bidRevisionId)
+                .orElseThrow(() -> new NotFoundException("Bid revision not found"));
+
+        Bid bid = revision.getBid();
+
+        estimateAccessService.requireBidEditAccess(bid);
+
+        ensureBidCanBeChanged(bid);
+        ensureCurrentRevisionCanBeChanged(bid, revision);
+
+        List<BidRevisionItem> items = bidRevisionItemRepository
+                .findByBidRevision_BidRevisionIdAndGroupNameAndItemType_ItemTypeIdAndIsDeletedFalse(
+                        bidRevisionId,
+                        request.getGroupName(),
+                        request.getItemTypeId());
+
+        if (items.isEmpty()) {
+            return;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        UUID currentUserId = currentUserUtil.getCurrentUserId();
+
+        softDeleteItemsWithCosts(items, now, currentUserId);
+
+        pricingService.recalculateRevisionTotals(revision);
+
+        revision.setUpdatedAtUtc(now);
+        revision.setUpdatedByUserId(currentUserId);
+        bidRevisionRepository.save(revision);
+
+        bid.setUpdatedAtUtc(now);
+        bid.setUpdatedByUserId(currentUserId);
         bidRepository.save(bid);
     }
 
