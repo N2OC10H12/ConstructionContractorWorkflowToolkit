@@ -1,6 +1,8 @@
 package com.glassgang.pmworkflow.estimate.repository;
 
 import com.glassgang.pmworkflow.estimate.entity.CostRate;
+
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -19,5 +21,10 @@ public interface CostRateRepository extends JpaRepository<CostRate, UUID> {
 
     List<CostRate> findByIsDeletedFalseAndIsActiveTrueOrderByCodeAsc();
 
+    @EntityGraph(attributePaths = "costElement")
     List<CostRate> findByIsDeletedFalseOrderByCodeAsc();
+
+    @EntityGraph(attributePaths = "costElement")
+    List<CostRate> findByCostElement_CostElementIdAndIsDeletedFalseAndIsActiveTrueOrderByCodeAsc(
+        UUID costElementId);
 }

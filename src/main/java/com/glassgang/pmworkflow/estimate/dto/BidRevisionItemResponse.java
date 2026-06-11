@@ -2,7 +2,6 @@ package com.glassgang.pmworkflow.estimate.dto;
 
 import com.glassgang.pmworkflow.estimate.enums.CustomerDisplayMode;
 
-import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 

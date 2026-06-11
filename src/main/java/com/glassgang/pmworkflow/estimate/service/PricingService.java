@@ -99,7 +99,7 @@ public class PricingService {
                 .multiply(taxRatePercent)
                 .divide(ONE_HUNDRED, SCALE, RoundingMode.HALF_UP);
 
-        item.setMarkupPercent(deriveMarkupPercent(combinedCost, combinedPrice));
+        //item.setMarkupPercent(deriveMarkupPercent(combinedCost, combinedPrice)); //================================================markup override
         item.setGpmPercent(deriveGpmPercent(combinedCost, combinedPrice));
         item.setTaxAmount(money(taxAmount));
         item.setPriceWithTax(money(combinedPrice.add(taxAmount)));

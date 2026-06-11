@@ -47,8 +47,10 @@ public class DictionaryController {
     }
 
     @GetMapping("/cost-rates")
-    public List<CostRateResponse> getCostRates() {
-        return dictionaryService.getCostRates();
+    public List<CostRateResponse> getCostRates(
+            @RequestParam(required = false) UUID costElementId) {
+
+        return dictionaryService.getCostRates(costElementId);
     }
 
     @PostMapping("/item-types")

@@ -121,12 +121,20 @@ public class DictionaryService {
 
     private CostRateResponse toCostRateResponse(CostRate costRate) {
         CostRateResponse response = new CostRateResponse();
+
         response.setCostRateId(costRate.getCostRateId());
         response.setCode(costRate.getCode());
         response.setName(costRate.getName());
         response.setRateAmount(costRate.getRateAmount());
         response.setRateUnit(costRate.getRateUnit().name());
         response.setIsActive(costRate.getIsActive());
+
+        if (costRate.getCostElement() != null) {
+            response.setCostElementId(costRate.getCostElement().getCostElementId());
+            response.setCostElementCode(costRate.getCostElement().getCode());
+            response.setCostElementName(costRate.getCostElement().getName());
+        }
+
         return response;
     }
 
@@ -162,7 +170,7 @@ public class DictionaryService {
     public ItemTypeResponse updateItemType(UUID itemTypeId, UpdateItemTypeRequest request) {
 
         estimateAccessService.requireEstimateDictionaryManageAccess();
-        
+
         ItemType itemType = itemTypeRepository.findById(itemTypeId)
                 .filter(existing -> !existing.getIsDeleted())
                 .orElseThrow(() -> new NotFoundException("Item type not found"));
@@ -333,6 +341,10 @@ public class DictionaryService {
 
         LocalDateTime now = LocalDateTime.now();
 
+        CostElement costElement = costElementRepository
+                .findByCostElementIdAndIsDeletedFalseAndIsActiveTrue(request.getCostElementId())
+                .orElseThrow(() -> new NotFoundException("Cost element not found"));
+
         CostRate costRate = new CostRate();
         costRate.setCostRateId(UUID.randomUUID());
         costRate.setCode(code);
@@ -344,6 +356,8 @@ public class DictionaryService {
         costRate.setIsDeleted(false);
         costRate.setCreatedAtUtc(now);
         costRate.setUpdatedAtUtc(now);
+
+        costRate.setCostElement(costElement);
 
         CostRate saved = costRateRepository.save(costRate);
 
@@ -371,6 +385,14 @@ public class DictionaryService {
                     });
 
             costRate.setCode(code);
+        }
+
+        if (request.getCostElementId() != null) {
+            CostElement costElement = costElementRepository
+                    .findByCostElementIdAndIsDeletedFalseAndIsActiveTrue(request.getCostElementId())
+                    .orElseThrow(() -> new NotFoundException("Cost element not found"));
+
+            costRate.setCostElement(costElement);
         }
 
         if (request.getName() != null) {
@@ -554,5 +576,23 @@ public class DictionaryService {
                     existing.setUpdatedAtUtc(LocalDateTime.now());
                     taxRateRepository.save(existing);
                 });
+    }
+
+    @Transactional(readOnly = true)
+    public List<CostRateResponse> getCostRates(UUID costElementId) {
+
+        if (costElementId == null) {
+            return costRateRepository.findByIsDeletedFalseOrderByCodeAsc()
+                    .stream()
+                    .map(this::toCostRateResponse)
+                    .toList();
+        }
+
+        return costRateRepository
+                .findByCostElement_CostElementIdAndIsDeletedFalseAndIsActiveTrueOrderByCodeAsc(
+                        costElementId)
+                .stream()
+                .map(this::toCostRateResponse)
+                .toList();
     }
 }

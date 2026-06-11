@@ -14,6 +14,7 @@ public class CreateBidRevisionItemCostRequest {
     @NotNull(message = "costElementId is required")
     private UUID costElementId;
 
+    @NotNull(message = "costRateId is required")
     private UUID costRateId;
 
     @Size(max = 255, message = "groupName must be <= 255 characters")

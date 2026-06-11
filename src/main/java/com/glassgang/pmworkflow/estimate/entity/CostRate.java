@@ -5,8 +5,11 @@ import com.glassgang.pmworkflow.estimate.enums.CostRateUnit;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -64,4 +67,8 @@ public class CostRate {
 
     @Column(name = "deleted_by_user_id")
     private UUID deletedByUserId;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "cost_element_id", nullable = false)
+    private CostElement costElement;
 }

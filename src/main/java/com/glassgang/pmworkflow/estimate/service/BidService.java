@@ -669,8 +669,8 @@ public class BidService {
         pricingService.recalculateItemMaterialTotals(item);
         pricingService.recalculateItemTotals(item);
 
-        item.setTaxAmount(BigDecimal.ZERO);
-        item.setPriceWithTax(BigDecimal.ZERO);
+        // item.setTaxAmount(BigDecimal.ZERO);
+        // item.setPriceWithTax(BigDecimal.ZERO);
 
         item.setIsOptional(request.getIsOptional());
 
@@ -1008,6 +1008,8 @@ public class BidService {
                     .orElseThrow(() -> new NotFoundException("Cost rate not found"));
         }
 
+        ensureCostRateBelongsToCostElement(costElement, costRate);
+
         LocalDateTime now = LocalDateTime.now();
 
         UUID currentUserId = currentUserUtil.getCurrentUserId();
@@ -1032,10 +1034,10 @@ public class BidService {
 
         cost.setGroupName(request.getGroupName());
         cost.setQuantity(request.getQuantity());
-        cost.setUnitOfMeasure(request.getUnitOfMeasure());
+        cost.setUnitOfMeasure(costRate.getRateUnit().name());
 
-        cost.setRateSnapshot(costRate != null ? costRate.getRateAmount() : null);
-        cost.setRateUnitSnapshot(costRate != null ? costRate.getRateUnit().name() : null);
+        cost.setRateSnapshot(costRate.getRateAmount());
+        cost.setRateUnitSnapshot(costRate.getRateUnit().name());
 
         cost.setUnitCost(request.getUnitCost());
 
@@ -1179,6 +1181,9 @@ public class BidService {
         if (request.getCustomerNote() != null) {
             cost.setCustomerNote(request.getCustomerNote());
         }
+
+        ensureCostRateBelongsToCostElement(cost.getCostElement(), cost.getCostRate());
+        cost.setUnitOfMeasure(cost.getCostRate().getRateUnit().name());
 
         pricingService.recalculateItemCostTotals(cost);
 
@@ -1496,6 +1501,22 @@ public class BidService {
             clonedCost.setIsDeleted(false);
 
             bidRevisionItemCostRepository.save(clonedCost);
+        }
+    }
+
+    private void ensureCostRateBelongsToCostElement(
+            CostElement costElement,
+            CostRate costRate) {
+
+        if (costRate == null) {
+            throw new BusinessRuleException("Cost rate is required");
+        }
+
+        if (costRate.getCostElement() == null
+                || !costRate.getCostElement().getCostElementId()
+                        .equals(costElement.getCostElementId())) {
+            throw new BusinessRuleException(
+                    "Cost rate does not belong to selected cost element");
         }
     }
 }

@@ -14,7 +14,11 @@ public class BidRevisionItemCostResponse {
     private UUID bidRevisionItemCostId;
     private UUID bidRevisionItemId;
     private UUID costElementId;
+    private String costElementCode;
+    private String costElementName;
     private UUID costRateId;
+    private String costRateCode;
+    private String costRateName;
 
     private Integer lineNumber;
     private Integer displayOrder;

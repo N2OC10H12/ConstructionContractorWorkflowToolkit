@@ -16,4 +16,7 @@ public class CostRateResponse {
     private BigDecimal rateAmount;
     private String rateUnit;
     private Boolean isActive;
+    private UUID costElementId;
+    private String costElementCode;
+    private String costElementName;
 }

@@ -160,11 +160,21 @@ public class BidMapper {
                                 cost.getCostElement() != null
                                                 ? cost.getCostElement().getCostElementId()
                                                 : null);
+                
+                                                if (cost.getCostElement() != null) {
+                        response.setCostElementCode(cost.getCostElement().getCode());
+                        response.setCostElementName(cost.getCostElement().getName());
+                }
 
                 response.setCostRateId(
                                 cost.getCostRate() != null
                                                 ? cost.getCostRate().getCostRateId()
                                                 : null);
+                
+                                                if (cost.getCostRate() != null) {
+                        response.setCostRateCode(cost.getCostRate().getCode());
+                        response.setCostRateName(cost.getCostRate().getName());
+                }
 
                 response.setLineNumber(cost.getLineNumber());
                 response.setDisplayOrder(cost.getDisplayOrder());
