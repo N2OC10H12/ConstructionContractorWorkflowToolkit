@@ -1,6 +1,6 @@
 package com.glassgang.pmworkflow.estimate.dto.dictionary;
 
-import com.glassgang.pmworkflow.estimate.enums.CostRateUnit;
+import com.glassgang.pmworkflow.estimate.enums.UnitOfMeasure;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -24,7 +24,7 @@ public class UpdateCostRateRequest {
     @DecimalMin(value = "0.0000", message = "rateAmount must be >= 0")
     private BigDecimal rateAmount;
 
-    private CostRateUnit rateUnit;
+    private UnitOfMeasure rateUnit;
 
     private Boolean isActive;
 

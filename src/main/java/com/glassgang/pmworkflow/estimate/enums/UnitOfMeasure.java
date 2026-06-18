@@ -1,6 +1,6 @@
 package com.glassgang.pmworkflow.estimate.enums;
 
-public enum CostRateUnit {
+public enum UnitOfMeasure {
     HOUR,
     DAY,
     NIGHT,

@@ -20,4 +20,8 @@ public interface CostElementRepository extends JpaRepository<CostElement, UUID> 
     List<CostElement> findByIsDeletedFalseAndIsActiveTrueOrderByCodeAsc();
 
     List<CostElement> findByIsDeletedFalseOrderByCodeAsc();
+
+    Optional<CostElement> findByCode(String code);
+
+    boolean existsByCode(String code);
 }

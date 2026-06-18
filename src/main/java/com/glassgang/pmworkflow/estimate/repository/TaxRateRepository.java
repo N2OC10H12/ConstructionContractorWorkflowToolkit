@@ -22,4 +22,8 @@ public interface TaxRateRepository extends JpaRepository<TaxRate, UUID> {
     List<TaxRate> findByIsDeletedFalseOrderByCodeAsc();
 
     List<TaxRate> findByIsDeletedFalseAndIsActiveTrueOrderByCodeAsc();
+
+    Optional<TaxRate> findByCode(String code);
+
+    boolean existsByCode(String code);
 }

@@ -26,5 +26,9 @@ public interface CostRateRepository extends JpaRepository<CostRate, UUID> {
 
     @EntityGraph(attributePaths = "costElement")
     List<CostRate> findByCostElement_CostElementIdAndIsDeletedFalseAndIsActiveTrueOrderByCodeAsc(
-        UUID costElementId);
+            UUID costElementId);
+
+    Optional<CostRate> findByCode(String code);
+
+    boolean existsByCode(String code);
 }

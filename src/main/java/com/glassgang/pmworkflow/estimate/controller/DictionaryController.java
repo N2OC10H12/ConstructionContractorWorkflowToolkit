@@ -8,6 +8,7 @@ import com.glassgang.pmworkflow.estimate.dto.dictionary.CreateItemTypeRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.CreateTaxRateRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.ItemTypeResponse;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.TaxRateResponse;
+import com.glassgang.pmworkflow.estimate.dto.dictionary.UnitOfMeasureResponse;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.UpdateCostElementRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.UpdateCostRateRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.UpdateItemTypeRequest;
@@ -127,5 +128,10 @@ public class DictionaryController {
     public void deleteTaxRate(
             @PathVariable UUID taxRateId) {
         dictionaryService.deleteTaxRate(taxRateId);
+    }
+
+    @GetMapping("/unit-of-measures")
+    public List<UnitOfMeasureResponse> getUnitOfMeasures() {
+        return dictionaryService.getUnitOfMeasures();
     }
 }

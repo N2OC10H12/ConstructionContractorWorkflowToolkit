@@ -1,6 +1,6 @@
 package com.glassgang.pmworkflow.estimate.entity;
 
-import com.glassgang.pmworkflow.estimate.enums.CostRateUnit;
+import com.glassgang.pmworkflow.estimate.enums.UnitOfMeasure;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -42,7 +42,7 @@ public class CostRate {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "rate_unit", nullable = false, length = 50)
-    private CostRateUnit rateUnit;
+    private UnitOfMeasure rateUnit;
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive;

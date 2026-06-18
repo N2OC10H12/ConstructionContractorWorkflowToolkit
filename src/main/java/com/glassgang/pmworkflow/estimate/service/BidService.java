@@ -296,9 +296,11 @@ public class BidService {
 
         savedBid.setCurrentRevision(savedRevision);
         savedBid.setUpdatedAtUtc(now);
-        bidRepository.save(savedBid);
+        savedBid.setUpdatedByUserId(currentUserId);
 
-        return bidMapper.toBidResponse(savedBid);
+        Bid savedBidWithRevision = bidRepository.save(savedBid);
+
+        return bidMapper.toBidResponse(savedBidWithRevision);
     }
 
     @Transactional(readOnly = true)
@@ -997,8 +999,13 @@ public class BidService {
         ensureCurrentRevisionCanBeChanged(bid, revision);
 
         CostElement costElement = costElementRepository
-                .findByCostElementIdAndIsDeletedFalseAndIsActiveTrue(request.getCostElementId())
+                .findByCostElementIdAndIsDeletedFalse(request.getCostElementId())
                 .orElseThrow(() -> new NotFoundException("Cost element not found"));
+
+        if (!Boolean.TRUE.equals(costElement.getIsActive())) {
+            throw new BusinessRuleException(
+                    "Cannot assign cost rate to inactive cost element");
+        }
 
         CostRate costRate = null;
 
@@ -1123,9 +1130,14 @@ public class BidService {
         if (request.getCostElementId() != null) {
 
             CostElement costElement = costElementRepository
-                    .findByCostElementIdAndIsDeletedFalseAndIsActiveTrue(
+                    .findByCostElementIdAndIsDeletedFalse(
                             request.getCostElementId())
                     .orElseThrow(() -> new NotFoundException("Cost element not found"));
+
+            if (!Boolean.TRUE.equals(costElement.getIsActive())) {
+                throw new BusinessRuleException(
+                        "Cannot assign cost rate to inactive cost element");
+            }
 
             cost.setCostElement(costElement);
         }
