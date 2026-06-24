@@ -1,5 +1,6 @@
 package com.glassgang.pmworkflow.estimate.service;
 
+import com.glassgang.pmworkflow.audit.service.EstimateAuditService;
 import com.glassgang.pmworkflow.common.util.CurrentUserUtil;
 import com.glassgang.pmworkflow.estimate.dto.BidResponse;
 import com.glassgang.pmworkflow.estimate.dto.BidRevisionItemCostResponse;
@@ -64,6 +65,7 @@ public class BidService {
     private final PricingService pricingService;
     private final CurrentUserUtil currentUserUtil;
     private final EstimateAccessService estimateAccessService;
+    private final EstimateAuditService estimateAuditService;
 
     public BidService(
             BidRepository bidRepository,
@@ -79,7 +81,8 @@ public class BidService {
             TaxRateRepository taxRateRepository,
             PricingService pricingService,
             CurrentUserUtil currentUserUtil,
-            EstimateAccessService estimateAccessService) {
+            EstimateAccessService estimateAccessService,
+            EstimateAuditService estimateAuditService) {
         this.bidRepository = bidRepository;
         this.bidRevisionRepository = bidRevisionRepository;
         this.bidRevisionItemRepository = bidRevisionItemRepository;
@@ -94,6 +97,7 @@ public class BidService {
         this.pricingService = pricingService;
         this.currentUserUtil = currentUserUtil;
         this.estimateAccessService = estimateAccessService;
+        this.estimateAuditService = estimateAuditService;
     }
 
     @Transactional
@@ -153,6 +157,16 @@ public class BidService {
 
         Bid savedBidWithRevision = bidRepository.save(savedBid);
 
+        estimateAuditService.log(
+                savedBidWithRevision.getBidId(),
+                savedRevision.getBidRevisionId(),
+                "CREATED",
+                "BID",
+                savedBidWithRevision.getBidId(),
+                null,
+                savedBidWithRevision.getBidNumber(),
+                "Bid created: " + savedBidWithRevision.getBidNumber());
+
         return bidMapper.toBidResponse(savedBidWithRevision);
     }
 
@@ -174,6 +188,8 @@ public class BidService {
         }
 
         ensureCurrentRevisionCanBeChanged(bid, currentRevision);
+
+        String oldValue = buildBidAuditValue(bid);
 
         if (request.getCustomerId() != null) {
             Customer customer = customerRepository
@@ -210,6 +226,20 @@ public class BidService {
         bid.setUpdatedByUserId(currentUserId);
 
         Bid savedBid = bidRepository.save(bid);
+
+        String newValue = buildBidAuditValue(savedBid);
+
+        if (!oldValue.equals(newValue)) {
+            estimateAuditService.log(
+                    savedBid.getBidId(),
+                    currentRevision.getBidRevisionId(),
+                    "UPDATED",
+                    "BID",
+                    savedBid.getBidId(),
+                    oldValue,
+                    newValue,
+                    "Bid updated: " + savedBid.getBidNumber());
+        }
 
         return bidMapper.toBidResponse(savedBid);
     }
@@ -299,6 +329,19 @@ public class BidService {
         savedBid.setUpdatedByUserId(currentUserId);
 
         Bid savedBidWithRevision = bidRepository.save(savedBid);
+
+        estimateAuditService.log(
+                savedBidWithRevision.getBidId(),
+                savedRevision.getBidRevisionId(),
+                "COPIED_FROM_REVISION",
+                "BID",
+                savedBidWithRevision.getBidId(),
+                sourceRevision.getRevisionDisplayName(),
+                savedBidWithRevision.getBidNumber(),
+                "Bid created from revision: "
+                        + savedBidWithRevision.getBidNumber()
+                        + " from "
+                        + sourceRevision.getRevisionDisplayName());
 
         return bidMapper.toBidResponse(savedBidWithRevision);
     }
@@ -459,6 +502,17 @@ public class BidService {
 
         bidRepository.save(bid);
 
+        estimateAuditService.log(
+                bid.getBidId(),
+                savedRevision.getBidRevisionId(),
+                "CLONED",
+                "BID_REVISION",
+                savedRevision.getBidRevisionId(),
+                currentRevision.getRevisionDisplayName(),
+                savedRevision.getRevisionDisplayName(),
+                "Revision created: " + savedRevision.getRevisionDisplayName()
+                        + " from " + currentRevision.getRevisionDisplayName());
+
         return bidMapper.toBidRevisionResponse(savedRevision);
     }
 
@@ -501,6 +555,16 @@ public class BidService {
         bid.setUpdatedByUserId(currentUserId);
 
         bidRepository.save(bid);
+
+        estimateAuditService.log(
+                bid.getBidId(),
+                savedRevision.getBidRevisionId(),
+                "SENT",
+                "BID_REVISION",
+                savedRevision.getBidRevisionId(),
+                RevisionStatus.DRAFT.name(),
+                RevisionStatus.SENT.name(),
+                "Revision sent: " + savedRevision.getRevisionDisplayName());
 
         return bidMapper.toBidRevisionResponse(savedRevision);
     }
@@ -559,6 +623,16 @@ public class BidService {
 
         bidRepository.save(bid);
 
+        estimateAuditService.log(
+                bid.getBidId(),
+                revision.getBidRevisionId(),
+                "AWARDED",
+                "BID_REVISION",
+                revision.getBidRevisionId(),
+                RevisionStatus.SENT.name(),
+                RevisionStatus.AWARDED.name(),
+                "Revision awarded: " + revision.getRevisionDisplayName());
+
         return bidMapper.toBidRevisionResponse(revision);
     }
 
@@ -583,6 +657,12 @@ public class BidService {
 
         UUID currentUserId = currentUserUtil.getCurrentUserId();
 
+        BidStatus oldBidStatus = bid.getBidStatus();
+
+        UUID currentRevisionId = bid.getCurrentRevision() != null
+                ? bid.getCurrentRevision().getBidRevisionId()
+                : null;
+
         List<BidRevision> bidRevisions = bidRevisionRepository
                 .findByBid_BidIdAndIsDeletedFalseOrderByRevisionNumberAsc(bidId);
 
@@ -600,6 +680,16 @@ public class BidService {
         bid.setUpdatedByUserId(currentUserId);
 
         Bid savedBid = bidRepository.save(bid);
+
+        estimateAuditService.log(
+                savedBid.getBidId(),
+                currentRevisionId,
+                "LOST",
+                "BID",
+                savedBid.getBidId(),
+                oldBidStatus.name(),
+                BidStatus.LOST.name(),
+                "Bid marked lost: " + savedBid.getBidNumber());
 
         return bidMapper.toBidResponse(savedBid);
     }
@@ -1530,5 +1620,17 @@ public class BidService {
             throw new BusinessRuleException(
                     "Cost rate does not belong to selected cost element");
         }
+    }
+
+    private String buildBidAuditValue(Bid bid) {
+        UUID customerId = bid.getCustomer() != null
+                ? bid.getCustomer().getCustomerId()
+                : null;
+
+        return "customerId=" + customerId
+                + "; jobName=" + bid.getJobName()
+                + "; description=" + bid.getDescription()
+                + "; departmentCode=" + bid.getDepartmentCode()
+                + "; constructionType=" + bid.getConstructionType();
     }
 }

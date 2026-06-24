@@ -4,7 +4,7 @@ import com.glassgang.pmworkflow.common.exception.BadRequestException;
 import com.glassgang.pmworkflow.common.exception.ForbiddenException;
 import com.glassgang.pmworkflow.common.exception.NotFoundException;
 import com.glassgang.pmworkflow.common.util.CurrentUserUtil;
-import com.glassgang.pmworkflow.audit.service.AuditService;
+import com.glassgang.pmworkflow.audit.service.ProjectAuditService;
 import com.glassgang.pmworkflow.file.repository.SubstepFileRepository;
 import com.glassgang.pmworkflow.note.repository.SubstepNoteRepository;
 import com.glassgang.pmworkflow.project.dto.CreateProjectRequest;
@@ -61,7 +61,7 @@ public class ProjectService {
     private final WorkflowTemplateRepository workflowTemplateRepository;
     private final AppUserRepository appUserRepository;
     private final ProjectAccessService projectAccessService;
-    private final AuditService auditService;
+    private final ProjectAuditService auditService;
     private final ProjectStatusService projectStatusService;
     private final SubstepNoteRepository substepNoteRepository;
     private final SubstepFileRepository substepFileRepository;
@@ -74,7 +74,7 @@ public class ProjectService {
             ProjectStepRepository projectStepRepository,
             ProjectSubstepRepository projectSubstepRepository,
             ProjectAccessService projectAccessService,
-            AuditService auditService,
+            ProjectAuditService auditService,
             ProjectStatusService projectStatusService,
             SubstepNoteRepository substepNoteRepository,
             SubstepFileRepository substepFileRepository,

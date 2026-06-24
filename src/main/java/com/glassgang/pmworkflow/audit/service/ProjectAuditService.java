@@ -14,12 +14,12 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
-public class AuditService {
+public class ProjectAuditService {
 
     private final ProjectAuditLogRepository auditLogRepository;
     private final CurrentUserUtil currentUserUtil;
 
-    public AuditService(ProjectAuditLogRepository auditLogRepository,
+    public ProjectAuditService(ProjectAuditLogRepository auditLogRepository,
                         CurrentUserUtil currentUserUtil) {
         this.auditLogRepository = auditLogRepository;
         this.currentUserUtil = currentUserUtil;

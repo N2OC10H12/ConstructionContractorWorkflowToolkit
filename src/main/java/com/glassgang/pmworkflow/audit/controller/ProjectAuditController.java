@@ -2,7 +2,7 @@ package com.glassgang.pmworkflow.audit.controller;
 
 import com.glassgang.pmworkflow.audit.dto.ProjectAuditLogResponse;
 import com.glassgang.pmworkflow.common.dto.PagedResponse;
-import com.glassgang.pmworkflow.audit.service.AuditService;
+import com.glassgang.pmworkflow.audit.service.ProjectAuditService;
 import com.glassgang.pmworkflow.project.entity.Project;
 import com.glassgang.pmworkflow.project.repository.ProjectRepository;
 import com.glassgang.pmworkflow.project.service.ProjectAccessService;
@@ -13,13 +13,13 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/projects/{projectId}/audit")
-public class AuditController {
+public class ProjectAuditController {
 
-    private final AuditService auditService;
+    private final ProjectAuditService auditService;
     private final ProjectRepository projectRepository;
     private final ProjectAccessService projectAccessService;
 
-    public AuditController(AuditService auditService,
+    public ProjectAuditController(ProjectAuditService auditService,
                            ProjectRepository projectRepository,
                            ProjectAccessService projectAccessService) {
         this.auditService = auditService;

@@ -1,6 +1,6 @@
 package com.glassgang.pmworkflow.file.service;
 
-import com.glassgang.pmworkflow.audit.service.AuditService;
+import com.glassgang.pmworkflow.audit.service.ProjectAuditService;
 import com.glassgang.pmworkflow.common.exception.BadRequestException;
 import com.glassgang.pmworkflow.project.service.ProjectAccessService;
 import com.glassgang.pmworkflow.common.exception.NotFoundException;
@@ -29,14 +29,14 @@ public class SubstepFileService {
     private final FileStorageService fileStorageService;
     private final CurrentUserUtil currentUserUtil;
     private final ProjectAccessService projectAccessService;
-    private final AuditService auditService;
+    private final ProjectAuditService auditService;
 
     public SubstepFileService(SubstepFileRepository fileRepository,
                               ProjectSubstepRepository substepRepository,
                               FileStorageService fileStorageService,
                               CurrentUserUtil currentUserUtil,
                               ProjectAccessService projectAccessService,
-                              AuditService auditService) {
+                              ProjectAuditService auditService) {
         this.fileRepository = fileRepository;
         this.substepRepository = substepRepository;
         this.fileStorageService = fileStorageService;

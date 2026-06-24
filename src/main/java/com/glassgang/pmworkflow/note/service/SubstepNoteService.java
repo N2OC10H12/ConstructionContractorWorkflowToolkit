@@ -1,6 +1,6 @@
 package com.glassgang.pmworkflow.note.service;
 
-import com.glassgang.pmworkflow.audit.service.AuditService;
+import com.glassgang.pmworkflow.audit.service.ProjectAuditService;
 import com.glassgang.pmworkflow.common.exception.BadRequestException;
 import com.glassgang.pmworkflow.common.exception.NotFoundException;
 import com.glassgang.pmworkflow.common.util.CurrentUserUtil;
@@ -25,13 +25,13 @@ public class SubstepNoteService {
     private final ProjectSubstepRepository substepRepository;
     private final CurrentUserUtil currentUserUtil;
     private final ProjectAccessService projectAccessService;
-    private final AuditService auditService;
+    private final ProjectAuditService auditService;
 
     public SubstepNoteService(SubstepNoteRepository noteRepository,
                               ProjectSubstepRepository substepRepository,
                               CurrentUserUtil currentUserUtil,
                               ProjectAccessService projectAccessService,
-                              AuditService auditService) {
+                              ProjectAuditService auditService) {
         this.noteRepository = noteRepository;
         this.substepRepository = substepRepository;
         this.currentUserUtil = currentUserUtil;
