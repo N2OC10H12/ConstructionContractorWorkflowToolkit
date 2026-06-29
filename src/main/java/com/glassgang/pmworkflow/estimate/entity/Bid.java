@@ -1,5 +1,6 @@
 package com.glassgang.pmworkflow.estimate.entity;
 
+import com.glassgang.pmworkflow.businesspartner.entity.BusinessPartner;
 import com.glassgang.pmworkflow.estimate.enums.BidStatus;
 import com.glassgang.pmworkflow.estimate.enums.ConstructionType;
 import com.glassgang.pmworkflow.estimate.enums.DepartmentCode;
@@ -21,8 +22,8 @@ public class Bid {
     private UUID bidId;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "customer_id", nullable = false)
-    private Customer customer;
+    @JoinColumn(name = "customer_business_partner_id", nullable = false)
+    private BusinessPartner customer;
 
     @Column(name = "bid_number", nullable = false, length = 50)
     private String bidNumber;

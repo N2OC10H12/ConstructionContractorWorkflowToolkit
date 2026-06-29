@@ -2,6 +2,9 @@ package com.glassgang.pmworkflow.estimate.service;
 
 import com.glassgang.pmworkflow.audit.service.EstimateAuditService;
 import com.glassgang.pmworkflow.common.util.CurrentUserUtil;
+import com.glassgang.pmworkflow.businesspartner.entity.BusinessPartner;
+import com.glassgang.pmworkflow.businesspartner.repository.BusinessPartnerRepository;
+import com.glassgang.pmworkflow.businesspartner.repository.CustomerProfileRepository;
 import com.glassgang.pmworkflow.estimate.dto.BidResponse;
 import com.glassgang.pmworkflow.estimate.dto.BidRevisionItemCostResponse;
 import com.glassgang.pmworkflow.estimate.dto.BidRevisionItemResponse;
@@ -22,7 +25,6 @@ import com.glassgang.pmworkflow.estimate.entity.BidRevisionItem;
 import com.glassgang.pmworkflow.estimate.entity.BidRevisionItemCost;
 import com.glassgang.pmworkflow.estimate.entity.CostElement;
 import com.glassgang.pmworkflow.estimate.entity.CostRate;
-import com.glassgang.pmworkflow.estimate.entity.Customer;
 import com.glassgang.pmworkflow.estimate.entity.ItemType;
 import com.glassgang.pmworkflow.estimate.entity.TaxRate;
 import com.glassgang.pmworkflow.estimate.enums.BidStatus;
@@ -32,7 +34,6 @@ import com.glassgang.pmworkflow.estimate.mapper.BidMapper;
 import com.glassgang.pmworkflow.estimate.repository.BidRepository;
 import com.glassgang.pmworkflow.estimate.repository.BidRevisionRepository;
 import com.glassgang.pmworkflow.estimate.repository.BidRevisionItemRepository;
-import com.glassgang.pmworkflow.estimate.repository.CustomerRepository;
 import com.glassgang.pmworkflow.estimate.repository.ItemTypeRepository;
 import com.glassgang.pmworkflow.estimate.repository.TaxRateRepository;
 import com.glassgang.pmworkflow.estimate.repository.BidRevisionItemCostRepository;
@@ -53,11 +54,12 @@ public class BidService {
 
     private final BidRepository bidRepository;
     private final BidRevisionRepository bidRevisionRepository;
-    private final CustomerRepository customerRepository;
     private final BidNumberService bidNumberService;
     private final BidMapper bidMapper;
     private final BidRevisionItemRepository bidRevisionItemRepository;
     private final BidRevisionItemCostRepository bidRevisionItemCostRepository;
+    private final BusinessPartnerRepository businessPartnerRepository;
+    private final CustomerProfileRepository customerProfileRepository;
     private final CostElementRepository costElementRepository;
     private final CostRateRepository costRateRepository;
     private final ItemTypeRepository itemTypeRepository;
@@ -74,7 +76,8 @@ public class BidService {
             BidRevisionItemCostRepository bidRevisionItemCostRepository,
             CostElementRepository costElementRepository,
             CostRateRepository costRateRepository,
-            CustomerRepository customerRepository,
+            BusinessPartnerRepository businessPartnerRepository,
+            CustomerProfileRepository customerProfileRepository,
             BidNumberService bidNumberService,
             BidMapper bidMapper,
             ItemTypeRepository itemTypeRepository,
@@ -89,7 +92,8 @@ public class BidService {
         this.bidRevisionItemCostRepository = bidRevisionItemCostRepository;
         this.costElementRepository = costElementRepository;
         this.costRateRepository = costRateRepository;
-        this.customerRepository = customerRepository;
+        this.businessPartnerRepository = businessPartnerRepository;
+        this.customerProfileRepository = customerProfileRepository;
         this.bidNumberService = bidNumberService;
         this.bidMapper = bidMapper;
         this.itemTypeRepository = itemTypeRepository;
@@ -106,9 +110,7 @@ public class BidService {
         estimateAccessService.requireEstimateCreateAccess();
         UUID currentUserId = currentUserUtil.getCurrentUserId();
 
-        Customer customer = customerRepository
-                .findByCustomerIdAndIsDeletedFalse(request.getCustomerId())
-                .orElseThrow(() -> new NotFoundException("Customer not found"));
+        BusinessPartner customer = getActiveCustomerBusinessPartner(request.getCustomerId());
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -192,10 +194,7 @@ public class BidService {
         String oldValue = buildBidAuditValue(bid);
 
         if (request.getCustomerId() != null) {
-            Customer customer = customerRepository
-                    .findByCustomerIdAndIsDeletedFalse(request.getCustomerId())
-                    .orElseThrow(() -> new NotFoundException("Customer not found"));
-
+            BusinessPartner customer = getActiveCustomerBusinessPartner(request.getCustomerId());
             bid.setCustomer(customer);
         }
 
@@ -258,9 +257,7 @@ public class BidService {
 
         estimateAccessService.requireBidViewAccess(sourceRevision.getBid());
 
-        Customer customer = customerRepository
-                .findByCustomerIdAndIsDeletedFalse(request.getCustomerId())
-                .orElseThrow(() -> new NotFoundException("Customer not found"));
+        BusinessPartner customer = getActiveCustomerBusinessPartner(request.getCustomerId());
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -1624,7 +1621,7 @@ public class BidService {
 
     private String buildBidAuditValue(Bid bid) {
         UUID customerId = bid.getCustomer() != null
-                ? bid.getCustomer().getCustomerId()
+                ? bid.getCustomer().getBusinessPartnerId()
                 : null;
 
         return "customerId=" + customerId
@@ -1632,5 +1629,20 @@ public class BidService {
                 + "; description=" + bid.getDescription()
                 + "; departmentCode=" + bid.getDepartmentCode()
                 + "; constructionType=" + bid.getConstructionType();
+    }
+
+    private BusinessPartner getActiveCustomerBusinessPartner(UUID businessPartnerId) {
+        BusinessPartner partner = businessPartnerRepository
+                .findByBusinessPartnerIdAndIsDeletedFalse(businessPartnerId)
+                .orElseThrow(() -> new NotFoundException("Customer not found"));
+
+        boolean hasCustomerProfile = customerProfileRepository
+                .existsByBusinessPartner_BusinessPartnerIdAndIsDeletedFalse(businessPartnerId);
+
+        if (!hasCustomerProfile) {
+            throw new BusinessRuleException("Business partner is not a customer");
+        }
+
+        return partner;
     }
 }

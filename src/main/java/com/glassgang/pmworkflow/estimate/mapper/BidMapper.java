@@ -26,7 +26,10 @@ public class BidMapper {
                 BidResponse response = new BidResponse();
 
                 response.setBidId(bid.getBidId());
-                response.setCustomerId(bid.getCustomer().getCustomerId());
+                response.setCustomerId(
+                                bid.getCustomer() != null
+                                                ? bid.getCustomer().getBusinessPartnerId()
+                                                : null);
                 response.setOwner(toBidOwnerResponse(bid));
                 response.setBidNumber(bid.getBidNumber());
                 response.setJobNumber(bid.getJobNumber());
@@ -160,8 +163,8 @@ public class BidMapper {
                                 cost.getCostElement() != null
                                                 ? cost.getCostElement().getCostElementId()
                                                 : null);
-                
-                                                if (cost.getCostElement() != null) {
+
+                if (cost.getCostElement() != null) {
                         response.setCostElementCode(cost.getCostElement().getCode());
                         response.setCostElementName(cost.getCostElement().getName());
                 }
@@ -170,8 +173,8 @@ public class BidMapper {
                                 cost.getCostRate() != null
                                                 ? cost.getCostRate().getCostRateId()
                                                 : null);
-                
-                                                if (cost.getCostRate() != null) {
+
+                if (cost.getCostRate() != null) {
                         response.setCostRateCode(cost.getCostRate().getCode());
                         response.setCostRateName(cost.getCostRate().getName());
                 }
