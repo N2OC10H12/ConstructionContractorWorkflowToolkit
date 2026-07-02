@@ -1,0 +1,409 @@
+package com.glassgang.pmworkflow.estimate.pdf;
+
+import com.glassgang.pmworkflow.businesspartner.entity.BusinessPartner;
+import com.glassgang.pmworkflow.businesspartner.entity.BusinessPartnerAddress;
+import com.glassgang.pmworkflow.businesspartner.entity.BusinessPartnerContact;
+import com.glassgang.pmworkflow.businesspartner.repository.BusinessPartnerAddressRepository;
+import com.glassgang.pmworkflow.businesspartner.repository.BusinessPartnerContactRepository;
+import com.glassgang.pmworkflow.estimate.entity.Bid;
+import com.glassgang.pmworkflow.estimate.entity.BidRevision;
+import com.glassgang.pmworkflow.estimate.entity.BidRevisionItem;
+import com.glassgang.pmworkflow.estimate.entity.BidRevisionItemCost;
+import com.glassgang.pmworkflow.estimate.enums.EstimatePriceDisplayMode;
+import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfAddressBlock;
+import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfCompanyBlock;
+import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfContactBlock;
+import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfCustomerBlock;
+import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfGroup;
+import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfItemCostLine;
+import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfItemLine;
+import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfItemTypeGroup;
+import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfJobBlock;
+import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfModel;
+import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfTotals;
+import com.glassgang.pmworkflow.estimate.repository.BidRevisionItemCostRepository;
+import com.glassgang.pmworkflow.estimate.repository.BidRevisionItemRepository;
+import com.glassgang.pmworkflow.estimate.repository.BidRevisionRepository;
+import com.glassgang.pmworkflow.estimate.service.EstimateAccessService;
+import jakarta.persistence.EntityNotFoundException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+@Service
+public class EstimatePdfModelBuilder {
+
+    private static final String NO_GROUP_KEY = "__NO_GROUP__";
+    private static final String NO_ITEM_TYPE_KEY = "__NO_ITEM_TYPE__";
+
+    private final BidRevisionRepository bidRevisionRepository;
+    private final BidRevisionItemRepository bidRevisionItemRepository;
+    private final BidRevisionItemCostRepository bidRevisionItemCostRepository;
+    private final BusinessPartnerAddressRepository businessPartnerAddressRepository;
+    private final BusinessPartnerContactRepository businessPartnerContactRepository;
+    private final EstimateAccessService estimateAccessService;
+
+    public EstimatePdfModelBuilder(
+            BidRevisionRepository bidRevisionRepository,
+            BidRevisionItemRepository bidRevisionItemRepository,
+            BidRevisionItemCostRepository bidRevisionItemCostRepository,
+            BusinessPartnerAddressRepository businessPartnerAddressRepository,
+            BusinessPartnerContactRepository businessPartnerContactRepository,
+            EstimateAccessService estimateAccessService) {
+
+        this.bidRevisionRepository = bidRevisionRepository;
+        this.bidRevisionItemRepository = bidRevisionItemRepository;
+        this.bidRevisionItemCostRepository = bidRevisionItemCostRepository;
+        this.businessPartnerAddressRepository = businessPartnerAddressRepository;
+        this.businessPartnerContactRepository = businessPartnerContactRepository;
+        this.estimateAccessService = estimateAccessService;
+    }
+
+    @Transactional(readOnly = true)
+    public EstimatePdfModel build(UUID bidRevisionId) {
+        BidRevision revision = bidRevisionRepository.findByBidRevisionIdAndIsDeletedFalse(bidRevisionId)
+                .orElseThrow(() -> new EntityNotFoundException("Bid revision not found: " + bidRevisionId));
+
+        Bid bid = revision.getBid();
+
+        estimateAccessService.requireBidViewAccess(bid);
+
+        BusinessPartner customer = bid.getCustomer();
+
+        EstimatePdfModel model = new EstimatePdfModel();
+        model.setBidId(bid.getBidId());
+        model.setBidRevisionId(revision.getBidRevisionId());
+        model.setBidNumber(bid.getBidNumber());
+        model.setJobNumber(bid.getJobNumber());
+        model.setRevisionNumber(revision.getRevisionNumber());
+        model.setRevisionDisplayName(revision.getRevisionDisplayName());
+        model.setCreatedAtUtc(revision.getCreatedAtUtc());
+        model.setRevisionUpdatedAtUtc(revision.getUpdatedAtUtc());
+        model.setPriceDisplayMode(revision.getPriceDisplayMode());
+
+        model.setShowTitleTotalPrice(true);
+
+        model.setCompany(buildCompanyBlock());
+        model.setCustomer(buildCustomerBlock(customer));
+        model.setJob(buildJobBlock(bid, revision));
+        model.setTotals(buildTotals(revision));
+
+        List<BidRevisionItem> items = bidRevisionItemRepository
+                .findByBidRevision_BidRevisionIdAndIsDeletedFalseOrderByDisplayOrderAsc(
+                        bidRevisionId);
+
+        model.getGroups().addAll(buildGroups(items));
+        applyPriceDisplayMode(model);
+
+        return model;
+    }
+
+    private EstimatePdfCompanyBlock buildCompanyBlock() {
+        return new EstimatePdfCompanyBlock();
+    }
+
+    private EstimatePdfCustomerBlock buildCustomerBlock(BusinessPartner customer) {
+        if (customer == null) {
+            return null;
+        }
+
+        EstimatePdfCustomerBlock block = new EstimatePdfCustomerBlock();
+        block.setCustomerId(customer.getBusinessPartnerId());
+        block.setDisplayName(customer.getDisplayName());
+        block.setCompanyName(customer.getCompanyName());
+        block.setFirstName(customer.getFirstName());
+        block.setLastName(customer.getLastName());
+        block.setEmail(customer.getEmail());
+        block.setPhone(customer.getPhone());
+        block.setWebsite(customer.getWebsite());
+
+        BusinessPartnerAddress address = findBestAddress(customer.getBusinessPartnerId());
+        block.setAddress(buildAddressBlock(address));
+
+        BusinessPartnerContact contact = findBestContact(customer.getBusinessPartnerId());
+        block.setContact(buildContactBlock(contact));
+
+        return block;
+    }
+
+    private BusinessPartnerAddress findBestAddress(UUID businessPartnerId) {
+        return businessPartnerAddressRepository
+                .findFirstByBusinessPartner_BusinessPartnerIdAndIsDeletedFalseAndIsPrimaryTrueOrderByUpdatedAtUtcDesc(
+                        businessPartnerId)
+                .or(() -> businessPartnerAddressRepository
+                        .findFirstByBusinessPartner_BusinessPartnerIdAndIsDeletedFalseOrderByUpdatedAtUtcDesc(
+                                businessPartnerId))
+                .orElse(null);
+    }
+
+    private BusinessPartnerContact findBestContact(UUID businessPartnerId) {
+        return businessPartnerContactRepository
+                .findFirstByBusinessPartner_BusinessPartnerIdAndIsDeletedFalseAndIsPrimaryTrueOrderByUpdatedAtUtcDesc(
+                        businessPartnerId)
+                .or(() -> businessPartnerContactRepository
+                        .findFirstByBusinessPartner_BusinessPartnerIdAndIsDeletedFalseOrderByUpdatedAtUtcDesc(
+                                businessPartnerId))
+                .orElse(null);
+    }
+
+    private EstimatePdfAddressBlock buildAddressBlock(BusinessPartnerAddress address) {
+        if (address == null) {
+            return null;
+        }
+
+        EstimatePdfAddressBlock block = new EstimatePdfAddressBlock();
+        block.setLine1(address.getLine1());
+        block.setLine2(address.getLine2());
+        block.setCity(address.getCity());
+        block.setState(address.getState());
+        block.setPostalCode(address.getPostalCode());
+        block.setCountry(address.getCountry());
+
+        return block;
+    }
+
+    private EstimatePdfContactBlock buildContactBlock(BusinessPartnerContact contact) {
+        if (contact == null) {
+            return null;
+        }
+
+        EstimatePdfContactBlock block = new EstimatePdfContactBlock();
+        block.setContactName(contact.getContactName());
+        block.setTitle(contact.getTitle());
+        block.setEmail(contact.getEmail());
+        block.setPhone(contact.getPhone());
+        block.setMobilePhone(contact.getMobilePhone());
+
+        return block;
+    }
+
+    private EstimatePdfJobBlock buildJobBlock(Bid bid, BidRevision revision) {
+        EstimatePdfJobBlock block = new EstimatePdfJobBlock();
+
+        block.setJobName(bid.getJobName());
+        block.setJobNumber(bid.getJobNumber());
+        block.setDescription(bid.getDescription());
+
+        block.setAddressLine1(bid.getJobAddressLine1());
+        block.setAddressLine2(bid.getJobAddressLine2());
+        block.setCity(bid.getJobCity());
+        block.setState(bid.getJobState());
+        block.setPostalCode(bid.getJobPostalCode());
+        block.setCountry(bid.getJobCountry());
+
+        block.setDepartmentCode(bid.getDepartmentCode());
+        block.setConstructionType(bid.getConstructionType());
+
+        block.setDefaultTaxRateCode(revision.getDefaultTaxRateSnapshotCode());
+        block.setDefaultTaxRateName(revision.getDefaultTaxRateSnapshotName());
+        block.setDefaultTaxRatePercent(revision.getDefaultTaxRateSnapshotPercent());
+
+        return block;
+    }
+
+    private EstimatePdfTotals buildTotals(BidRevision revision) {
+        EstimatePdfTotals totals = new EstimatePdfTotals();
+
+        totals.setSubtotalCost(revision.getSubtotalCost());
+        totals.setSubtotalPrice(revision.getSubtotalPrice());
+
+        totals.setCustomerFacingSubtotalPrice(
+                nvl(revision.getTotalPrice()).subtract(nvl(revision.getTaxAmount())));
+                
+        totals.setTaxAmount(revision.getTaxAmount());
+        totals.setTotalPrice(revision.getTotalPrice());
+
+        return totals;
+    }
+
+    private List<EstimatePdfGroup> buildGroups(List<BidRevisionItem> items) {
+        Map<String, EstimatePdfGroup> groupMap = new LinkedHashMap<>();
+        Map<String, Map<String, EstimatePdfItemTypeGroup>> itemTypeMapsByGroup = new LinkedHashMap<>();
+
+        for (BidRevisionItem item : items) {
+            String groupKey = groupKey(item);
+            EstimatePdfGroup group = groupMap.computeIfAbsent(groupKey, key -> {
+                EstimatePdfGroup newGroup = new EstimatePdfGroup();
+                newGroup.setGroupName(item.getGroupName());
+                newGroup.setSubtotalPrice(BigDecimal.ZERO);
+                newGroup.setTaxAmount(BigDecimal.ZERO);
+                newGroup.setTotalPrice(BigDecimal.ZERO);
+                return newGroup;
+            });
+
+            Map<String, EstimatePdfItemTypeGroup> itemTypeMap = itemTypeMapsByGroup.computeIfAbsent(groupKey,
+                    key -> new LinkedHashMap<>());
+
+            String itemTypeKey = itemTypeKey(item);
+            EstimatePdfItemTypeGroup itemTypeGroup = itemTypeMap.computeIfAbsent(itemTypeKey, key -> {
+                EstimatePdfItemTypeGroup newItemTypeGroup = new EstimatePdfItemTypeGroup();
+
+                if (item.getItemType() != null) {
+                    newItemTypeGroup.setItemTypeId(item.getItemType().getItemTypeId());
+                    newItemTypeGroup.setItemTypeCode(item.getItemType().getCode());
+                    newItemTypeGroup.setItemTypeName(item.getItemType().getName());
+                }
+
+                newItemTypeGroup.setSubtotalPrice(BigDecimal.ZERO);
+                newItemTypeGroup.setTaxAmount(BigDecimal.ZERO);
+                newItemTypeGroup.setTotalPrice(BigDecimal.ZERO);
+
+                group.getItemTypes().add(newItemTypeGroup);
+
+                return newItemTypeGroup;
+            });
+
+            EstimatePdfItemLine itemLine = buildItemLine(item);
+            itemTypeGroup.getItems().add(itemLine);
+
+            BigDecimal itemSubtotalForRollup = subtotalForRollup(itemLine);
+            BigDecimal itemTax = nvl(itemLine.getTaxAmount());
+            BigDecimal itemTotal = nvl(itemLine.getPriceWithTax());
+
+            itemTypeGroup.setSubtotalPrice(nvl(itemTypeGroup.getSubtotalPrice()).add(itemSubtotalForRollup));
+            itemTypeGroup.setTaxAmount(nvl(itemTypeGroup.getTaxAmount()).add(itemTax));
+            itemTypeGroup.setTotalPrice(nvl(itemTypeGroup.getTotalPrice()).add(itemTotal));
+
+            group.setSubtotalPrice(nvl(group.getSubtotalPrice()).add(itemSubtotalForRollup));
+            group.setTaxAmount(nvl(group.getTaxAmount()).add(itemTax));
+            group.setTotalPrice(nvl(group.getTotalPrice()).add(itemTotal));
+        }
+
+        return List.copyOf(groupMap.values());
+    }
+
+    private EstimatePdfItemLine buildItemLine(BidRevisionItem item) {
+        EstimatePdfItemLine line = new EstimatePdfItemLine();
+
+        line.setBidRevisionItemId(item.getBidRevisionItemId());
+        line.setLineNumber(item.getLineNumber());
+        line.setDisplayOrder(item.getDisplayOrder());
+
+        line.setDescription(item.getDescription());
+        line.setQuantity(item.getQuantity());
+        line.setUnitOfMeasure(toText(item.getUnitOfMeasure()));
+
+        line.setUnitPrice(item.getUnitPrice());
+        line.setTotalPrice(item.getTotalPrice());
+        line.setTaxAmount(item.getTaxAmount());
+        line.setPriceWithTax(item.getPriceWithTax());
+
+        line.setIsOptional(item.getIsOptional());
+        line.setShowCustomerRow(item.getShowCustomerRow());
+        line.setShowCustomerPrice(item.getShowCustomerPrice());
+
+        line.setCustomerNote(item.getCustomerNote());
+
+        line.setTaxRateCode(item.getTaxRateSnapshotCode());
+        line.setTaxRateName(item.getTaxRateSnapshotName());
+        line.setTaxRatePercent(item.getTaxRateSnapshotPercent());
+
+        List<BidRevisionItemCost> costs = bidRevisionItemCostRepository
+                .findByBidRevisionItem_BidRevisionItemIdAndIsDeletedFalseOrderByDisplayOrderAsc(
+                        item.getBidRevisionItemId());
+
+        for (BidRevisionItemCost cost : costs) {
+            line.getCosts().add(buildItemCostLine(cost));
+        }
+
+        return line;
+    }
+
+    private EstimatePdfItemCostLine buildItemCostLine(BidRevisionItemCost cost) {
+        EstimatePdfItemCostLine line = new EstimatePdfItemCostLine();
+
+        line.setBidRevisionItemCostId(cost.getBidRevisionItemCostId());
+        line.setLineNumber(cost.getLineNumber());
+        line.setDisplayOrder(cost.getDisplayOrder());
+
+        if (cost.getCostElement() != null) {
+            line.setCostElementCode(cost.getCostElement().getCode());
+            line.setCostElementName(cost.getCostElement().getName());
+        }
+
+        if (cost.getCostRate() != null) {
+            line.setCostRateCode(cost.getCostRate().getCode());
+            line.setCostRateName(cost.getCostRate().getName());
+        }
+
+        line.setQuantity(cost.getQuantity());
+        line.setUnitOfMeasure(toText(cost.getUnitOfMeasure()));
+
+        line.setUnitPrice(cost.getUnitPrice());
+        line.setTotalPrice(cost.getTotalPrice());
+        line.setTaxAmount(cost.getTaxAmount());
+        line.setPriceWithTax(cost.getPriceWithTax());
+
+        line.setShowCustomer(cost.getShowCustomer());
+        line.setIsOptional(cost.getIsOptional());
+
+        line.setCustomerNote(cost.getCustomerNote());
+
+        return line;
+    }
+
+    private String groupKey(BidRevisionItem item) {
+        return item.getGroupName() == null || item.getGroupName().isBlank()
+                ? NO_GROUP_KEY
+                : item.getGroupName();
+    }
+
+    private String itemTypeKey(BidRevisionItem item) {
+        if (item.getItemType() == null || item.getItemType().getItemTypeId() == null) {
+            return NO_ITEM_TYPE_KEY;
+        }
+
+        return item.getItemType().getItemTypeId().toString();
+    }
+
+    private BigDecimal subtotalForRollup(EstimatePdfItemLine itemLine) {
+        if (itemLine.getPriceWithTax() != null) {
+            return nvl(itemLine.getPriceWithTax()).subtract(nvl(itemLine.getTaxAmount()));
+        }
+
+        return nvl(itemLine.getTotalPrice());
+    }
+
+    private void applyPriceDisplayMode(EstimatePdfModel model) {
+        EstimatePriceDisplayMode mode = model.getPriceDisplayMode() != null
+                ? model.getPriceDisplayMode()
+                : EstimatePriceDisplayMode.ITEM_TYPE_LEVEL;
+
+        boolean showGroupPrice = mode == EstimatePriceDisplayMode.GROUP_LEVEL;
+        boolean showItemTypePrice = mode == EstimatePriceDisplayMode.ITEM_TYPE_LEVEL;
+        boolean showItemPrice = mode == EstimatePriceDisplayMode.ITEM_LEVEL
+                || mode == EstimatePriceDisplayMode.ITEM_COST_LEVEL;
+        boolean showCostLines = mode == EstimatePriceDisplayMode.ITEM_COST_LEVEL;
+        boolean showCostPrice = mode == EstimatePriceDisplayMode.ITEM_COST_LEVEL;
+
+        for (EstimatePdfGroup group : model.getGroups()) {
+            group.setShowPrice(showGroupPrice);
+
+            for (EstimatePdfItemTypeGroup itemTypeGroup : group.getItemTypes()) {
+                itemTypeGroup.setShowPrice(showItemTypePrice);
+
+                for (EstimatePdfItemLine item : itemTypeGroup.getItems()) {
+                    item.setShowPrice(showItemPrice);
+                    item.setShowCostLines(showCostLines);
+
+                    for (EstimatePdfItemCostLine cost : item.getCosts()) {
+                        cost.setShowPrice(showCostPrice);
+                    }
+                }
+            }
+        }
+    }
+
+    private BigDecimal nvl(BigDecimal value) {
+        return value != null ? value : BigDecimal.ZERO;
+    }
+
+    private String toText(Object value) {
+        return value != null ? String.valueOf(value) : null;
+    }
+}

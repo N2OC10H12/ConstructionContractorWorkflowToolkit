@@ -2,6 +2,9 @@ package com.glassgang.pmworkflow.estimate.service;
 
 import com.glassgang.pmworkflow.audit.service.EstimateAuditService;
 import com.glassgang.pmworkflow.common.util.CurrentUserUtil;
+import com.glassgang.pmworkflow.businesspartner.entity.BusinessPartner;
+import com.glassgang.pmworkflow.businesspartner.repository.BusinessPartnerRepository;
+import com.glassgang.pmworkflow.businesspartner.repository.CustomerProfileRepository;
 import com.glassgang.pmworkflow.estimate.dto.BidResponse;
 import com.glassgang.pmworkflow.estimate.dto.BidRevisionItemCostResponse;
 import com.glassgang.pmworkflow.estimate.dto.BidRevisionItemResponse;
@@ -22,17 +25,16 @@ import com.glassgang.pmworkflow.estimate.entity.BidRevisionItem;
 import com.glassgang.pmworkflow.estimate.entity.BidRevisionItemCost;
 import com.glassgang.pmworkflow.estimate.entity.CostElement;
 import com.glassgang.pmworkflow.estimate.entity.CostRate;
-import com.glassgang.pmworkflow.estimate.entity.Customer;
 import com.glassgang.pmworkflow.estimate.entity.ItemType;
 import com.glassgang.pmworkflow.estimate.entity.TaxRate;
 import com.glassgang.pmworkflow.estimate.enums.BidStatus;
 import com.glassgang.pmworkflow.estimate.enums.CustomerDisplayMode;
+import com.glassgang.pmworkflow.estimate.enums.EstimatePriceDisplayMode;
 import com.glassgang.pmworkflow.estimate.enums.RevisionStatus;
 import com.glassgang.pmworkflow.estimate.mapper.BidMapper;
 import com.glassgang.pmworkflow.estimate.repository.BidRepository;
 import com.glassgang.pmworkflow.estimate.repository.BidRevisionRepository;
 import com.glassgang.pmworkflow.estimate.repository.BidRevisionItemRepository;
-import com.glassgang.pmworkflow.estimate.repository.CustomerRepository;
 import com.glassgang.pmworkflow.estimate.repository.ItemTypeRepository;
 import com.glassgang.pmworkflow.estimate.repository.TaxRateRepository;
 import com.glassgang.pmworkflow.estimate.repository.BidRevisionItemCostRepository;
@@ -53,11 +55,12 @@ public class BidService {
 
     private final BidRepository bidRepository;
     private final BidRevisionRepository bidRevisionRepository;
-    private final CustomerRepository customerRepository;
     private final BidNumberService bidNumberService;
     private final BidMapper bidMapper;
     private final BidRevisionItemRepository bidRevisionItemRepository;
     private final BidRevisionItemCostRepository bidRevisionItemCostRepository;
+    private final BusinessPartnerRepository businessPartnerRepository;
+    private final CustomerProfileRepository customerProfileRepository;
     private final CostElementRepository costElementRepository;
     private final CostRateRepository costRateRepository;
     private final ItemTypeRepository itemTypeRepository;
@@ -74,7 +77,8 @@ public class BidService {
             BidRevisionItemCostRepository bidRevisionItemCostRepository,
             CostElementRepository costElementRepository,
             CostRateRepository costRateRepository,
-            CustomerRepository customerRepository,
+            BusinessPartnerRepository businessPartnerRepository,
+            CustomerProfileRepository customerProfileRepository,
             BidNumberService bidNumberService,
             BidMapper bidMapper,
             ItemTypeRepository itemTypeRepository,
@@ -89,7 +93,8 @@ public class BidService {
         this.bidRevisionItemCostRepository = bidRevisionItemCostRepository;
         this.costElementRepository = costElementRepository;
         this.costRateRepository = costRateRepository;
-        this.customerRepository = customerRepository;
+        this.businessPartnerRepository = businessPartnerRepository;
+        this.customerProfileRepository = customerProfileRepository;
         this.bidNumberService = bidNumberService;
         this.bidMapper = bidMapper;
         this.itemTypeRepository = itemTypeRepository;
@@ -106,9 +111,13 @@ public class BidService {
         estimateAccessService.requireEstimateCreateAccess();
         UUID currentUserId = currentUserUtil.getCurrentUserId();
 
-        Customer customer = customerRepository
-                .findByCustomerIdAndIsDeletedFalse(request.getCustomerId())
-                .orElseThrow(() -> new NotFoundException("Customer not found"));
+        BusinessPartner customer = getActiveCustomerBusinessPartner(request.getCustomerId());
+
+        TaxRate defaultTaxRate = null;
+
+        if (request.getDefaultTaxRateId() != null) {
+            defaultTaxRate = getActiveTaxRate(request.getDefaultTaxRateId());
+        }
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -118,6 +127,12 @@ public class BidService {
         bid.setBidNumber(bidNumberService.generateNextBidNumber());
         bid.setJobNumber(bidNumberService.generateNextJobNumber());
         bid.setJobName(request.getJobName());
+        bid.setJobAddressLine1(request.getJobAddressLine1());
+        bid.setJobAddressLine2(request.getJobAddressLine2());
+        bid.setJobCity(request.getJobCity());
+        bid.setJobState(request.getJobState());
+        bid.setJobPostalCode(request.getJobPostalCode());
+        bid.setJobCountry(request.getJobCountry());
         bid.setDescription(request.getDescription());
         bid.setDepartmentCode(request.getDepartmentCode());
         bid.setBidStatus(BidStatus.DRAFT);
@@ -126,6 +141,7 @@ public class BidService {
         bid.setCreatedByUserId(currentUserId);
         bid.setUpdatedByUserId(currentUserId);
         bid.setConstructionType(request.getConstructionType());
+        bid.setDefaultTaxRate(defaultTaxRate);
         bid.setIsDeleted(false);
 
         Bid savedBid = bidRepository.save(bid);
@@ -144,11 +160,18 @@ public class BidService {
         revision.setSubtotalPrice(BigDecimal.ZERO);
         revision.setTaxAmount(BigDecimal.ZERO);
         revision.setTotalPrice(BigDecimal.ZERO);
+
+        applyDefaultTaxRateSnapshot(revision, savedBid.getDefaultTaxRate());
+
         revision.setCreatedAtUtc(now);
         revision.setUpdatedAtUtc(now);
         revision.setCreatedByUserId(currentUserId);
         revision.setUpdatedByUserId(currentUserId);
         revision.setIsDeleted(false);
+        revision.setPriceDisplayMode(
+                request.getPriceDisplayMode() != null
+                        ? request.getPriceDisplayMode()
+                        : EstimatePriceDisplayMode.ITEM_TYPE_LEVEL);
 
         BidRevision savedRevision = bidRevisionRepository.save(revision);
 
@@ -192,10 +215,7 @@ public class BidService {
         String oldValue = buildBidAuditValue(bid);
 
         if (request.getCustomerId() != null) {
-            Customer customer = customerRepository
-                    .findByCustomerIdAndIsDeletedFalse(request.getCustomerId())
-                    .orElseThrow(() -> new NotFoundException("Customer not found"));
-
+            BusinessPartner customer = getActiveCustomerBusinessPartner(request.getCustomerId());
             bid.setCustomer(customer);
         }
 
@@ -205,6 +225,30 @@ public class BidService {
             }
 
             bid.setJobName(request.getJobName().trim());
+        }
+
+        if (request.getJobAddressLine1() != null) {
+            bid.setJobAddressLine1(request.getJobAddressLine1());
+        }
+
+        if (request.getJobAddressLine2() != null) {
+            bid.setJobAddressLine2(request.getJobAddressLine2());
+        }
+
+        if (request.getJobCity() != null) {
+            bid.setJobCity(request.getJobCity());
+        }
+
+        if (request.getJobState() != null) {
+            bid.setJobState(request.getJobState());
+        }
+
+        if (request.getJobPostalCode() != null) {
+            bid.setJobPostalCode(request.getJobPostalCode());
+        }
+
+        if (request.getJobCountry() != null) {
+            bid.setJobCountry(request.getJobCountry());
         }
 
         if (request.getDescription() != null) {
@@ -217,6 +261,12 @@ public class BidService {
 
         if (request.getConstructionType() != null) {
             bid.setConstructionType(request.getConstructionType());
+        }
+
+        if (request.getDefaultTaxRateId() != null) {
+            TaxRate defaultTaxRate = getActiveTaxRate(request.getDefaultTaxRateId());
+            bid.setDefaultTaxRate(defaultTaxRate);
+            applyDefaultTaxRateSnapshot(currentRevision, defaultTaxRate);
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -250,17 +300,20 @@ public class BidService {
             CreateBidFromRevisionRequest request) {
 
         estimateAccessService.requireEstimateCreateAccess();
+
         UUID currentUserId = currentUserUtil.getCurrentUserId();
 
         BidRevision sourceRevision = bidRevisionRepository
                 .findByBidRevisionIdAndIsDeletedFalse(sourceBidRevisionId)
                 .orElseThrow(() -> new NotFoundException("Source bid revision not found"));
 
-        estimateAccessService.requireBidViewAccess(sourceRevision.getBid());
+        Bid sourceBid = sourceRevision.getBid();
 
-        Customer customer = customerRepository
-                .findByCustomerIdAndIsDeletedFalse(request.getCustomerId())
-                .orElseThrow(() -> new NotFoundException("Customer not found"));
+        estimateAccessService.requireBidViewAccess(sourceBid);
+
+        BusinessPartner customer = request.getCustomerId() != null
+                ? getActiveCustomerBusinessPartner(request.getCustomerId())
+                : sourceBid.getCustomer();
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -269,20 +322,42 @@ public class BidService {
         newBid.setCustomer(customer);
         newBid.setBidNumber(bidNumberService.generateNextBidNumber());
         newBid.setJobNumber(bidNumberService.generateNextJobNumber());
-        newBid.setJobName(request.getJobName());
-        newBid.setDescription(request.getDescription());
-        newBid.setDepartmentCode(request.getDepartmentCode());
+
+        newBid.setJobName(
+                request.getJobName() != null && !request.getJobName().isBlank()
+                        ? request.getJobName().trim()
+                        : sourceBid.getJobName());
+
+        newBid.setJobAddressLine1(sourceBid.getJobAddressLine1());
+        newBid.setJobAddressLine2(sourceBid.getJobAddressLine2());
+        newBid.setJobCity(sourceBid.getJobCity());
+        newBid.setJobState(sourceBid.getJobState());
+        newBid.setJobPostalCode(sourceBid.getJobPostalCode());
+        newBid.setJobCountry(sourceBid.getJobCountry());
+
+        newBid.setDescription(
+                request.getDescription() != null
+                        ? request.getDescription()
+                        : sourceBid.getDescription());
+
+        newBid.setDepartmentCode(
+                request.getDepartmentCode() != null
+                        ? request.getDepartmentCode()
+                        : sourceBid.getDepartmentCode());
+
+        newBid.setConstructionType(
+                request.getConstructionType() != null
+                        ? request.getConstructionType()
+                        : sourceBid.getConstructionType());
+
+        newBid.setDefaultTaxRate(sourceBid.getDefaultTaxRate());
+
         newBid.setBidStatus(BidStatus.DRAFT);
         newBid.setCreatedAtUtc(now);
         newBid.setUpdatedAtUtc(now);
         newBid.setCreatedByUserId(currentUserId);
         newBid.setUpdatedByUserId(currentUserId);
         newBid.setIsDeleted(false);
-
-        newBid.setConstructionType(
-                request.getConstructionType() != null
-                        ? request.getConstructionType()
-                        : sourceRevision.getBid().getConstructionType());
 
         Bid savedBid = bidRepository.save(newBid);
 
@@ -300,6 +375,9 @@ public class BidService {
 
         newRevision.setTaxType(null);
         newRevision.setTaxRatePercent(null);
+
+        copyDefaultTaxRateSnapshot(newRevision, sourceRevision, savedBid.getDefaultTaxRate());
+
         newRevision.setCustomerNote(sourceRevision.getCustomerNote());
         newRevision.setInternalNote(sourceRevision.getInternalNote());
 
@@ -315,6 +393,13 @@ public class BidService {
         newRevision.setCreatedByUserId(currentUserId);
         newRevision.setUpdatedByUserId(currentUserId);
         newRevision.setIsDeleted(false);
+
+        newRevision.setPriceDisplayMode(
+                request.getPriceDisplayMode() != null
+                        ? request.getPriceDisplayMode()
+                        : sourceRevision.getPriceDisplayMode() != null
+                                ? sourceRevision.getPriceDisplayMode()
+                                : EstimatePriceDisplayMode.ITEM_TYPE_LEVEL);
 
         BidRevision savedRevision = bidRevisionRepository.save(newRevision);
 
@@ -477,6 +562,8 @@ public class BidService {
         revision.setTaxAmount(currentRevision.getTaxAmount());
         revision.setTotalPrice(currentRevision.getTotalPrice());
 
+        copyDefaultTaxRateSnapshot(revision, currentRevision, bid.getDefaultTaxRate());
+
         revision.setClonedFromBidRevision(currentRevision);
 
         revision.setCreatedAtUtc(now);
@@ -485,6 +572,13 @@ public class BidService {
         revision.setUpdatedByUserId(currentUserId);
 
         revision.setIsDeleted(false);
+
+        revision.setPriceDisplayMode(
+                request.getPriceDisplayMode() != null
+                        ? request.getPriceDisplayMode()
+                        : currentRevision.getPriceDisplayMode() != null
+                                ? currentRevision.getPriceDisplayMode()
+                                : EstimatePriceDisplayMode.ITEM_TYPE_LEVEL);
 
         BidRevision savedRevision = bidRevisionRepository.save(revision);
 
@@ -1624,13 +1718,71 @@ public class BidService {
 
     private String buildBidAuditValue(Bid bid) {
         UUID customerId = bid.getCustomer() != null
-                ? bid.getCustomer().getCustomerId()
+                ? bid.getCustomer().getBusinessPartnerId()
+                : null;
+
+        UUID defaultTaxRateId = bid.getDefaultTaxRate() != null
+                ? bid.getDefaultTaxRate().getTaxRateId()
                 : null;
 
         return "customerId=" + customerId
                 + "; jobName=" + bid.getJobName()
+                + "; jobAddressLine1=" + bid.getJobAddressLine1()
+                + "; jobAddressLine2=" + bid.getJobAddressLine2()
+                + "; jobCity=" + bid.getJobCity()
+                + "; jobState=" + bid.getJobState()
+                + "; jobPostalCode=" + bid.getJobPostalCode()
+                + "; jobCountry=" + bid.getJobCountry()
                 + "; description=" + bid.getDescription()
                 + "; departmentCode=" + bid.getDepartmentCode()
-                + "; constructionType=" + bid.getConstructionType();
+                + "; constructionType=" + bid.getConstructionType()
+                + "; defaultTaxRateId=" + defaultTaxRateId;
+    }
+
+    private BusinessPartner getActiveCustomerBusinessPartner(UUID businessPartnerId) {
+        BusinessPartner partner = businessPartnerRepository
+                .findByBusinessPartnerIdAndIsDeletedFalse(businessPartnerId)
+                .orElseThrow(() -> new NotFoundException("Customer not found"));
+
+        boolean hasCustomerProfile = customerProfileRepository
+                .existsByBusinessPartner_BusinessPartnerIdAndIsDeletedFalse(businessPartnerId);
+
+        if (!hasCustomerProfile) {
+            throw new BusinessRuleException("Business partner is not a customer");
+        }
+
+        return partner;
+    }
+
+    private void applyDefaultTaxRateSnapshot(BidRevision revision, TaxRate taxRate) {
+        if (taxRate == null) {
+            revision.setDefaultTaxRateSnapshotCode(null);
+            revision.setDefaultTaxRateSnapshotName(null);
+            revision.setDefaultTaxRateSnapshotPercent(null);
+            return;
+        }
+
+        revision.setDefaultTaxRateSnapshotCode(taxRate.getCode());
+        revision.setDefaultTaxRateSnapshotName(taxRate.getName());
+        revision.setDefaultTaxRateSnapshotPercent(taxRate.getRatePercent());
+    }
+
+    private void copyDefaultTaxRateSnapshot(
+            BidRevision targetRevision,
+            BidRevision sourceRevision,
+            TaxRate fallbackTaxRate) {
+
+        if (sourceRevision != null
+                && (sourceRevision.getDefaultTaxRateSnapshotCode() != null
+                        || sourceRevision.getDefaultTaxRateSnapshotName() != null
+                        || sourceRevision.getDefaultTaxRateSnapshotPercent() != null)) {
+
+            targetRevision.setDefaultTaxRateSnapshotCode(sourceRevision.getDefaultTaxRateSnapshotCode());
+            targetRevision.setDefaultTaxRateSnapshotName(sourceRevision.getDefaultTaxRateSnapshotName());
+            targetRevision.setDefaultTaxRateSnapshotPercent(sourceRevision.getDefaultTaxRateSnapshotPercent());
+            return;
+        }
+
+        applyDefaultTaxRateSnapshot(targetRevision, fallbackTaxRate);
     }
 }
