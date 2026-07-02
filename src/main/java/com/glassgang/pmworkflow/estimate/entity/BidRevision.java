@@ -1,5 +1,6 @@
 package com.glassgang.pmworkflow.estimate.entity;
 
+import com.glassgang.pmworkflow.estimate.enums.EstimatePriceDisplayMode;
 import com.glassgang.pmworkflow.estimate.enums.RevisionStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -93,4 +94,17 @@ public class BidRevision {
 
     @Column(name = "deleted_by_user_id")
     private UUID deletedByUserId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "price_display_mode", nullable = false, length = 50)
+    private EstimatePriceDisplayMode priceDisplayMode;
+
+    @Column(name = "default_tax_rate_snapshot_code", length = 50)
+    private String defaultTaxRateSnapshotCode;
+
+    @Column(name = "default_tax_rate_snapshot_name", length = 150)
+    private String defaultTaxRateSnapshotName;
+
+    @Column(name = "default_tax_rate_snapshot_percent", precision = 9, scale = 4)
+    private BigDecimal defaultTaxRateSnapshotPercent;
 }

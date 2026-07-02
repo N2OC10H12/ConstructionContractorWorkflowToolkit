@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import com.glassgang.pmworkflow.estimate.enums.EstimatePriceDisplayMode;
 import com.glassgang.pmworkflow.estimate.enums.RevisionStatus;
 
 @Getter
@@ -22,6 +23,7 @@ public class BidRevisionResponse {
     private BigDecimal taxAmount;
     private BigDecimal totalPrice;
     private String customerNote;
+    private EstimatePriceDisplayMode priceDisplayMode;
     private LocalDateTime sentAtUtc;
     private LocalDateTime awardedAtUtc;
     private LocalDateTime lostAtUtc;
@@ -29,4 +31,7 @@ public class BidRevisionResponse {
     private UUID clonedFromBidRevisionId;
     private LocalDateTime createdAtUtc;
     private LocalDateTime updatedAtUtc;
+    private String defaultTaxRateSnapshotCode;
+    private String defaultTaxRateSnapshotName;
+    private BigDecimal defaultTaxRateSnapshotPercent;
 }

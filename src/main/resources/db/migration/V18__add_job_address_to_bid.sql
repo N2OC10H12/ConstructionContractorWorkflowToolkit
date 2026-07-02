@@ -1,0 +1,7 @@
+ALTER TABLE estimate.bid
+ADD COLUMN job_address_line1 VARCHAR(255) NULL,
+ADD COLUMN job_address_line2 VARCHAR(255) NULL,
+ADD COLUMN job_city VARCHAR(100) NULL,
+ADD COLUMN job_state VARCHAR(100) NULL,
+ADD COLUMN job_postal_code VARCHAR(30) NULL,
+ADD COLUMN job_country VARCHAR(100) NULL;

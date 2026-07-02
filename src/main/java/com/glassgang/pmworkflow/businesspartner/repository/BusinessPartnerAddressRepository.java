@@ -9,12 +9,17 @@ import java.util.UUID;
 
 public interface BusinessPartnerAddressRepository extends JpaRepository<BusinessPartnerAddress, UUID> {
 
-    Optional<BusinessPartnerAddress> findByBusinessPartnerAddressIdAndIsDeletedFalse(UUID businessPartnerAddressId);
+        Optional<BusinessPartnerAddress> findByBusinessPartnerAddressIdAndIsDeletedFalse(UUID businessPartnerAddressId);
 
-    List<BusinessPartnerAddress> findByBusinessPartner_BusinessPartnerIdAndIsDeletedFalseOrderByIsPrimaryDescAddressTypeAsc(
-            UUID businessPartnerId
-    );
+        List<BusinessPartnerAddress> findByBusinessPartner_BusinessPartnerIdAndIsDeletedFalseOrderByIsPrimaryDescAddressTypeAsc(
+                        UUID businessPartnerId);
 
-    List<BusinessPartnerAddress> findByBusinessPartner_BusinessPartnerIdAndIsDeletedFalseOrderByCreatedAtUtcAsc(
-        UUID businessPartnerId);
+        List<BusinessPartnerAddress> findByBusinessPartner_BusinessPartnerIdAndIsDeletedFalseOrderByCreatedAtUtcAsc(
+                        UUID businessPartnerId);
+
+        Optional<BusinessPartnerAddress> findFirstByBusinessPartner_BusinessPartnerIdAndIsDeletedFalseAndIsPrimaryTrueOrderByUpdatedAtUtcDesc(
+                        UUID businessPartnerId);
+
+        Optional<BusinessPartnerAddress> findFirstByBusinessPartner_BusinessPartnerIdAndIsDeletedFalseOrderByUpdatedAtUtcDesc(
+                        UUID businessPartnerId);
 }

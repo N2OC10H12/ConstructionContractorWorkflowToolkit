@@ -34,6 +34,24 @@ public class Bid {
     @Column(name = "job_name")
     private String jobName;
 
+    @Column(name = "job_address_line1", length = 255)
+    private String jobAddressLine1;
+
+    @Column(name = "job_address_line2", length = 255)
+    private String jobAddressLine2;
+
+    @Column(name = "job_city", length = 100)
+    private String jobCity;
+
+    @Column(name = "job_state", length = 100)
+    private String jobState;
+
+    @Column(name = "job_postal_code", length = 30)
+    private String jobPostalCode;
+
+    @Column(name = "job_country", length = 100)
+    private String jobCountry;
+
     @Column(name = "description")
     private String description;
 
@@ -76,4 +94,9 @@ public class Bid {
     @Enumerated(EnumType.STRING)
     @Column(name = "construction_type", nullable = false, length = 50)
     private ConstructionType constructionType;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "default_tax_rate_id")
+    private TaxRate defaultTaxRate;
+
 }

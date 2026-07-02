@@ -1,5 +1,7 @@
 package com.glassgang.pmworkflow.estimate.dto;
 
+import com.glassgang.pmworkflow.estimate.enums.EstimatePriceDisplayMode;
+
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
@@ -13,4 +15,6 @@ public class CreateBidRevisionRequest {
 
     @Size(max = 4000, message = "internalNote must be <= 4000 characters")
     private String internalNote;
+
+    private EstimatePriceDisplayMode priceDisplayMode;
 }

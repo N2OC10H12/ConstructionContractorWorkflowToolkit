@@ -34,6 +34,12 @@ public class BidMapper {
                 response.setBidNumber(bid.getBidNumber());
                 response.setJobNumber(bid.getJobNumber());
                 response.setJobName(bid.getJobName());
+                response.setJobAddressLine1(bid.getJobAddressLine1());
+                response.setJobAddressLine2(bid.getJobAddressLine2());
+                response.setJobCity(bid.getJobCity());
+                response.setJobState(bid.getJobState());
+                response.setJobPostalCode(bid.getJobPostalCode());
+                response.setJobCountry(bid.getJobCountry());
                 response.setDescription(bid.getDescription());
                 response.setDepartmentCode(bid.getDepartmentCode());
                 response.setBidStatus(bid.getBidStatus());
@@ -47,6 +53,13 @@ public class BidMapper {
                 response.setCreatedAtUtc(bid.getCreatedAtUtc());
                 response.setUpdatedAtUtc(bid.getUpdatedAtUtc());
                 response.setConstructionType(bid.getConstructionType());
+
+                if (bid.getDefaultTaxRate() != null) {
+                        response.setDefaultTaxRateId(bid.getDefaultTaxRate().getTaxRateId());
+                        response.setDefaultTaxRateCode(bid.getDefaultTaxRate().getCode());
+                        response.setDefaultTaxRateName(bid.getDefaultTaxRate().getName());
+                        response.setDefaultTaxRatePercent(bid.getDefaultTaxRate().getRatePercent());
+                }
 
                 return response;
         }
@@ -64,6 +77,11 @@ public class BidMapper {
                 response.setRevisionNumber(bidRevision.getRevisionNumber());
                 response.setRevisionDisplayName(bidRevision.getRevisionDisplayName());
                 response.setRevisionStatus(bidRevision.getRevisionStatus());
+                response.setPriceDisplayMode(bidRevision.getPriceDisplayMode());
+
+                response.setDefaultTaxRateSnapshotCode(bidRevision.getDefaultTaxRateSnapshotCode());
+                response.setDefaultTaxRateSnapshotName(bidRevision.getDefaultTaxRateSnapshotName());
+                response.setDefaultTaxRateSnapshotPercent(bidRevision.getDefaultTaxRateSnapshotPercent());
 
                 response.setSubtotalCost(bidRevision.getSubtotalCost());
                 response.setSubtotalPrice(bidRevision.getSubtotalPrice());
