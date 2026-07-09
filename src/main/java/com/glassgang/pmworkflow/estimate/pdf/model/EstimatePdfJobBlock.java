@@ -4,6 +4,7 @@ import com.glassgang.pmworkflow.estimate.enums.ConstructionType;
 import com.glassgang.pmworkflow.estimate.enums.DepartmentCode;
 import lombok.Getter;
 import lombok.Setter;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -22,6 +23,9 @@ public class EstimatePdfJobBlock {
 
     private DepartmentCode departmentCode;
     private ConstructionType constructionType;
+    private UUID constructionObjectTypeId;
+    private String constructionObjectTypeCode;
+    private String constructionObjectTypeName;
 
     private String defaultTaxRateCode;
     private String defaultTaxRateName;

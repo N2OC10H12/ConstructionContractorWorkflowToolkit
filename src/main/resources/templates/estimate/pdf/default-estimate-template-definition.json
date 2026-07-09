@@ -1,0 +1,24 @@
+{
+  "source": "manual-css-template-update",
+  "schemaVersion": 1,
+  "itemsTable": {
+    "columns": {
+      "description": {
+        "visible": true,
+        "widthPercent": 60
+      },
+      "quantity": {
+        "visible": true,
+        "widthPercent": 9
+      },
+      "unit": {
+        "visible": true,
+        "widthPercent": 9
+      },
+      "price": {
+        "visible": true,
+        "widthPercent": 22
+      }
+    }
+  }
+}

@@ -53,6 +53,14 @@ public class BidMapper {
                 response.setCreatedAtUtc(bid.getCreatedAtUtc());
                 response.setUpdatedAtUtc(bid.getUpdatedAtUtc());
                 response.setConstructionType(bid.getConstructionType());
+                if (bid.getConstructionObjectType() != null) {
+                        response.setConstructionObjectTypeId(
+                                        bid.getConstructionObjectType().getConstructionObjectTypeId());
+                        response.setConstructionObjectTypeCode(
+                                        bid.getConstructionObjectType().getCode());
+                        response.setConstructionObjectTypeName(
+                                        bid.getConstructionObjectType().getName());
+                }
 
                 if (bid.getDefaultTaxRate() != null) {
                         response.setDefaultTaxRateId(bid.getDefaultTaxRate().getTaxRateId());

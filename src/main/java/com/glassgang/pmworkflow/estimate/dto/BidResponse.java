@@ -34,6 +34,9 @@ public class BidResponse {
     private LocalDateTime createdAtUtc;
     private LocalDateTime updatedAtUtc;
     private ConstructionType constructionType;
+    private UUID constructionObjectTypeId;
+    private String constructionObjectTypeCode;
+    private String constructionObjectTypeName;
     private UUID defaultTaxRateId;
     private String defaultTaxRateCode;
     private String defaultTaxRateName;

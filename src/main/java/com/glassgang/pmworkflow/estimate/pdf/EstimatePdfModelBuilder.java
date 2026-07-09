@@ -5,6 +5,8 @@ import com.glassgang.pmworkflow.businesspartner.entity.BusinessPartnerAddress;
 import com.glassgang.pmworkflow.businesspartner.entity.BusinessPartnerContact;
 import com.glassgang.pmworkflow.businesspartner.repository.BusinessPartnerAddressRepository;
 import com.glassgang.pmworkflow.businesspartner.repository.BusinessPartnerContactRepository;
+import com.glassgang.pmworkflow.company.dto.CompanyProfileResponse;
+import com.glassgang.pmworkflow.company.service.CompanyProfileService;
 import com.glassgang.pmworkflow.estimate.entity.Bid;
 import com.glassgang.pmworkflow.estimate.entity.BidRevision;
 import com.glassgang.pmworkflow.estimate.entity.BidRevisionItem;
@@ -47,6 +49,7 @@ public class EstimatePdfModelBuilder {
     private final BusinessPartnerAddressRepository businessPartnerAddressRepository;
     private final BusinessPartnerContactRepository businessPartnerContactRepository;
     private final EstimateAccessService estimateAccessService;
+    private final CompanyProfileService companyProfileService;
 
     public EstimatePdfModelBuilder(
             BidRevisionRepository bidRevisionRepository,
@@ -54,7 +57,8 @@ public class EstimatePdfModelBuilder {
             BidRevisionItemCostRepository bidRevisionItemCostRepository,
             BusinessPartnerAddressRepository businessPartnerAddressRepository,
             BusinessPartnerContactRepository businessPartnerContactRepository,
-            EstimateAccessService estimateAccessService) {
+            EstimateAccessService estimateAccessService,
+            CompanyProfileService companyProfileService) {
 
         this.bidRevisionRepository = bidRevisionRepository;
         this.bidRevisionItemRepository = bidRevisionItemRepository;
@@ -62,6 +66,7 @@ public class EstimatePdfModelBuilder {
         this.businessPartnerAddressRepository = businessPartnerAddressRepository;
         this.businessPartnerContactRepository = businessPartnerContactRepository;
         this.estimateAccessService = estimateAccessService;
+        this.companyProfileService = companyProfileService;
     }
 
     @Transactional(readOnly = true)
@@ -104,7 +109,20 @@ public class EstimatePdfModelBuilder {
     }
 
     private EstimatePdfCompanyBlock buildCompanyBlock() {
-        return new EstimatePdfCompanyBlock();
+        CompanyProfileResponse profile = companyProfileService.getDefaultProfile();
+
+        EstimatePdfCompanyBlock block = new EstimatePdfCompanyBlock();
+
+        block.setCompanyName(profile.companyName());
+        block.setLogoUrl(companyProfileService.getLogoDataUrl());
+
+        block.setPhone(profile.primaryPhone());
+        block.setEmail(profile.email());
+        block.setWebsite(profile.website());
+
+        applyBestPdfAddress(profile, block);
+
+        return block;
     }
 
     private EstimatePdfCustomerBlock buildCustomerBlock(BusinessPartner customer) {
@@ -198,6 +216,14 @@ public class EstimatePdfModelBuilder {
 
         block.setDepartmentCode(bid.getDepartmentCode());
         block.setConstructionType(bid.getConstructionType());
+        if (bid.getConstructionObjectType() != null) {
+            block.setConstructionObjectTypeId(
+                    bid.getConstructionObjectType().getConstructionObjectTypeId());
+            block.setConstructionObjectTypeCode(
+                    bid.getConstructionObjectType().getCode());
+            block.setConstructionObjectTypeName(
+                    bid.getConstructionObjectType().getName());
+        }
 
         block.setDefaultTaxRateCode(revision.getDefaultTaxRateSnapshotCode());
         block.setDefaultTaxRateName(revision.getDefaultTaxRateSnapshotName());
@@ -214,7 +240,7 @@ public class EstimatePdfModelBuilder {
 
         totals.setCustomerFacingSubtotalPrice(
                 nvl(revision.getTotalPrice()).subtract(nvl(revision.getTaxAmount())));
-                
+
         totals.setTaxAmount(revision.getTaxAmount());
         totals.setTotalPrice(revision.getTotalPrice());
 
@@ -405,5 +431,67 @@ public class EstimatePdfModelBuilder {
 
     private String toText(Object value) {
         return value != null ? String.valueOf(value) : null;
+    }
+
+    private void applyBestPdfAddress(
+            CompanyProfileResponse profile,
+            EstimatePdfCompanyBlock block) {
+        if (hasAnyAddress(
+                profile.customerCommunicationAddressLine1(),
+                profile.customerCommunicationAddressLine2(),
+                profile.customerCommunicationCity(),
+                profile.customerCommunicationState(),
+                profile.customerCommunicationPostalCode(),
+                profile.customerCommunicationCountry())) {
+            block.setAddressLine1(profile.customerCommunicationAddressLine1());
+            block.setAddressLine2(profile.customerCommunicationAddressLine2());
+            block.setCity(profile.customerCommunicationCity());
+            block.setState(profile.customerCommunicationState());
+            block.setPostalCode(profile.customerCommunicationPostalCode());
+            block.setCountry(profile.customerCommunicationCountry());
+            return;
+        }
+
+        if (hasAnyAddress(
+                profile.companyAddressLine1(),
+                profile.companyAddressLine2(),
+                profile.companyCity(),
+                profile.companyState(),
+                profile.companyPostalCode(),
+                profile.companyCountry())) {
+            block.setAddressLine1(profile.companyAddressLine1());
+            block.setAddressLine2(profile.companyAddressLine2());
+            block.setCity(profile.companyCity());
+            block.setState(profile.companyState());
+            block.setPostalCode(profile.companyPostalCode());
+            block.setCountry(profile.companyCountry());
+            return;
+        }
+
+        block.setAddressLine1(profile.legalAddressLine1());
+        block.setAddressLine2(profile.legalAddressLine2());
+        block.setCity(profile.legalCity());
+        block.setState(profile.legalState());
+        block.setPostalCode(profile.legalPostalCode());
+        block.setCountry(profile.legalCountry());
+    }
+
+    private boolean hasAnyAddress(
+            String line1,
+            String line2,
+            String city,
+            String state,
+            String postalCode,
+            String country) {
+        return hasText(line1)
+                || hasText(line2)
+                || hasText(city)
+                || hasText(state)
+                || hasText(postalCode)
+                || hasText(country);
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 }

@@ -45,4 +45,48 @@ public class FileStorageService {
             throw new BadRequestException("Failed to store file");
         }
     }
+
+    public String storeInFolder(String relativeFolder, UUID fileId, MultipartFile file, String extension) {
+        if (file == null || file.isEmpty()) {
+            throw new BadRequestException("File is required");
+        }
+
+        if (relativeFolder == null || relativeFolder.isBlank()) {
+            throw new BadRequestException("Storage folder is required");
+        }
+
+        if (extension == null || extension.isBlank()) {
+            throw new BadRequestException("File extension is required");
+        }
+
+        String cleanExtension = extension.startsWith(".")
+                ? extension.substring(1)
+                : extension;
+
+        Path folder = Paths.get(properties.getRootPath(), relativeFolder);
+
+        try {
+            Files.createDirectories(folder);
+
+            Path targetPath = folder.resolve(fileId + "." + cleanExtension);
+
+            Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+
+            return targetPath.toString();
+        } catch (IOException e) {
+            throw new BadRequestException("Failed to store file");
+        }
+    }
+
+    public void deleteByPath(String storagePath) {
+        if (storagePath == null || storagePath.isBlank()) {
+            return;
+        }
+
+        try {
+            Files.deleteIfExists(Paths.get(storagePath));
+        } catch (IOException e) {
+            throw new BadRequestException("Failed to delete physical file");
+        }
+    }
 }
