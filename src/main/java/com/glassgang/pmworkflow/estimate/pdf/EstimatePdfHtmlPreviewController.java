@@ -12,14 +12,15 @@ import java.util.UUID;
 @RequestMapping("/api/estimates/bids/revisions")
 public class EstimatePdfHtmlPreviewController {
 
-    private final EstimatePdfHtmlPreviewService estimatePdfHtmlPreviewService;
+    private final EstimatePdfTemplateRenderService estimatePdfTemplateRenderService;
 
-    public EstimatePdfHtmlPreviewController(EstimatePdfHtmlPreviewService estimatePdfHtmlPreviewService) {
-        this.estimatePdfHtmlPreviewService = estimatePdfHtmlPreviewService;
+    public EstimatePdfHtmlPreviewController(
+            EstimatePdfTemplateRenderService estimatePdfTemplateRenderService) {
+        this.estimatePdfTemplateRenderService = estimatePdfTemplateRenderService;
     }
 
     @GetMapping(value = "/{bidRevisionId}/pdf-html-preview", produces = MediaType.TEXT_HTML_VALUE)
     public String getPdfHtmlPreview(@PathVariable UUID bidRevisionId) {
-        return estimatePdfHtmlPreviewService.renderHtml(bidRevisionId);
+        return estimatePdfTemplateRenderService.renderSavedTemplate(bidRevisionId);
     }
 }

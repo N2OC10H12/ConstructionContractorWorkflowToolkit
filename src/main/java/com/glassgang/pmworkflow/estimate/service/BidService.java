@@ -23,6 +23,7 @@ import com.glassgang.pmworkflow.estimate.entity.Bid;
 import com.glassgang.pmworkflow.estimate.entity.BidRevision;
 import com.glassgang.pmworkflow.estimate.entity.BidRevisionItem;
 import com.glassgang.pmworkflow.estimate.entity.BidRevisionItemCost;
+import com.glassgang.pmworkflow.estimate.entity.ConstructionObjectType;
 import com.glassgang.pmworkflow.estimate.entity.CostElement;
 import com.glassgang.pmworkflow.estimate.entity.CostRate;
 import com.glassgang.pmworkflow.estimate.entity.ItemType;
@@ -34,6 +35,7 @@ import com.glassgang.pmworkflow.estimate.enums.RevisionStatus;
 import com.glassgang.pmworkflow.estimate.mapper.BidMapper;
 import com.glassgang.pmworkflow.estimate.repository.BidRepository;
 import com.glassgang.pmworkflow.estimate.repository.BidRevisionRepository;
+import com.glassgang.pmworkflow.estimate.repository.ConstructionObjectTypeRepository;
 import com.glassgang.pmworkflow.estimate.repository.BidRevisionItemRepository;
 import com.glassgang.pmworkflow.estimate.repository.ItemTypeRepository;
 import com.glassgang.pmworkflow.estimate.repository.TaxRateRepository;
@@ -69,6 +71,7 @@ public class BidService {
     private final CurrentUserUtil currentUserUtil;
     private final EstimateAccessService estimateAccessService;
     private final EstimateAuditService estimateAuditService;
+    private final ConstructionObjectTypeRepository constructionObjectTypeRepository;
 
     public BidService(
             BidRepository bidRepository,
@@ -86,7 +89,8 @@ public class BidService {
             PricingService pricingService,
             CurrentUserUtil currentUserUtil,
             EstimateAccessService estimateAccessService,
-            EstimateAuditService estimateAuditService) {
+            EstimateAuditService estimateAuditService,
+            ConstructionObjectTypeRepository constructionObjectTypeRepository) {
         this.bidRepository = bidRepository;
         this.bidRevisionRepository = bidRevisionRepository;
         this.bidRevisionItemRepository = bidRevisionItemRepository;
@@ -103,6 +107,7 @@ public class BidService {
         this.currentUserUtil = currentUserUtil;
         this.estimateAccessService = estimateAccessService;
         this.estimateAuditService = estimateAuditService;
+        this.constructionObjectTypeRepository = constructionObjectTypeRepository;
     }
 
     @Transactional
@@ -117,6 +122,14 @@ public class BidService {
 
         if (request.getDefaultTaxRateId() != null) {
             defaultTaxRate = getActiveTaxRate(request.getDefaultTaxRateId());
+        }
+
+        ConstructionObjectType constructionObjectType = null;
+
+        UUID constructionObjectTypeId = request.getConstructionObjectTypeId();
+
+        if (constructionObjectTypeId != null) {
+            constructionObjectType = getActiveConstructionObjectType(constructionObjectTypeId);
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -141,6 +154,7 @@ public class BidService {
         bid.setCreatedByUserId(currentUserId);
         bid.setUpdatedByUserId(currentUserId);
         bid.setConstructionType(request.getConstructionType());
+        bid.setConstructionObjectType(constructionObjectType);
         bid.setDefaultTaxRate(defaultTaxRate);
         bid.setIsDeleted(false);
 
@@ -263,6 +277,13 @@ public class BidService {
             bid.setConstructionType(request.getConstructionType());
         }
 
+        UUID constructionObjectTypeId = request.getConstructionObjectTypeId();
+
+        if (constructionObjectTypeId != null) {
+            ConstructionObjectType constructionObjectType = getActiveConstructionObjectType(constructionObjectTypeId);
+            bid.setConstructionObjectType(constructionObjectType);
+        }
+
         if (request.getDefaultTaxRateId() != null) {
             TaxRate defaultTaxRate = getActiveTaxRate(request.getDefaultTaxRateId());
             bid.setDefaultTaxRate(defaultTaxRate);
@@ -349,6 +370,13 @@ public class BidService {
                 request.getConstructionType() != null
                         ? request.getConstructionType()
                         : sourceBid.getConstructionType());
+
+        UUID constructionObjectTypeId = request.getConstructionObjectTypeId();
+
+        newBid.setConstructionObjectType(
+                constructionObjectTypeId != null
+                        ? getActiveConstructionObjectType(constructionObjectTypeId)
+                        : sourceBid.getConstructionObjectType());
 
         newBid.setDefaultTaxRate(sourceBid.getDefaultTaxRate());
 
@@ -1469,6 +1497,14 @@ public class BidService {
                 .orElseThrow(() -> new BusinessRuleException("Tax rate not found or inactive"));
     }
 
+    private ConstructionObjectType getActiveConstructionObjectType(UUID constructionObjectTypeId) {
+        return constructionObjectTypeRepository
+                .findByConstructionObjectTypeIdAndIsDeletedFalseAndIsActiveTrue(
+                        constructionObjectTypeId)
+                .orElseThrow(() -> new BusinessRuleException(
+                        "Construction object type not found or inactive"));
+    }
+
     private void applyTaxRateSnapshot(BidRevisionItem item, TaxRate taxRate) {
         item.setTaxRate(taxRate);
         item.setTaxRateSnapshotCode(taxRate.getCode());
@@ -1725,6 +1761,10 @@ public class BidService {
                 ? bid.getDefaultTaxRate().getTaxRateId()
                 : null;
 
+        UUID constructionObjectTypeId = bid.getConstructionObjectType() != null
+                ? bid.getConstructionObjectType().getConstructionObjectTypeId()
+                : null;
+
         return "customerId=" + customerId
                 + "; jobName=" + bid.getJobName()
                 + "; jobAddressLine1=" + bid.getJobAddressLine1()
@@ -1736,6 +1776,7 @@ public class BidService {
                 + "; description=" + bid.getDescription()
                 + "; departmentCode=" + bid.getDepartmentCode()
                 + "; constructionType=" + bid.getConstructionType()
+                + "; constructionObjectTypeId=" + constructionObjectTypeId
                 + "; defaultTaxRateId=" + defaultTaxRateId;
     }
 

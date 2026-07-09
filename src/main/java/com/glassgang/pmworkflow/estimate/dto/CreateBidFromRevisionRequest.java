@@ -24,5 +24,6 @@ public class CreateBidFromRevisionRequest {
 
     private DepartmentCode departmentCode;
     private ConstructionType constructionType;
+    private UUID constructionObjectTypeId;
     private EstimatePriceDisplayMode priceDisplayMode;
 }

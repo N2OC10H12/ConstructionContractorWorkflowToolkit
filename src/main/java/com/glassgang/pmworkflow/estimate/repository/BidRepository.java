@@ -18,4 +18,7 @@ public interface BidRepository extends JpaRepository<Bid, UUID> {
     List<Bid> findByIsDeletedFalseOrderByCreatedAtUtcDesc();
 
     List<Bid> findByCreatedByUserIdAndIsDeletedFalseOrderByCreatedAtUtcDesc(UUID createdByUserId);
+
+    boolean existsByConstructionObjectType_ConstructionObjectTypeIdAndIsDeletedFalse(
+            UUID constructionObjectTypeId);
 }

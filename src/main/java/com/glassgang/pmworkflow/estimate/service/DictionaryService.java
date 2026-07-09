@@ -2,8 +2,10 @@ package com.glassgang.pmworkflow.estimate.service;
 
 import com.glassgang.pmworkflow.common.exception.BusinessRuleException;
 import com.glassgang.pmworkflow.common.exception.NotFoundException;
+import com.glassgang.pmworkflow.estimate.dto.dictionary.ConstructionObjectTypeResponse;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.CostElementResponse;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.CostRateResponse;
+import com.glassgang.pmworkflow.estimate.dto.dictionary.CreateConstructionObjectTypeRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.CreateCostElementRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.CreateCostRateRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.CreateItemTypeRequest;
@@ -11,17 +13,21 @@ import com.glassgang.pmworkflow.estimate.dto.dictionary.CreateTaxRateRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.ItemTypeResponse;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.TaxRateResponse;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.UnitOfMeasureResponse;
+import com.glassgang.pmworkflow.estimate.dto.dictionary.UpdateConstructionObjectTypeRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.UpdateCostElementRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.UpdateCostRateRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.UpdateItemTypeRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.UpdateTaxRateRequest;
+import com.glassgang.pmworkflow.estimate.entity.ConstructionObjectType;
 import com.glassgang.pmworkflow.estimate.entity.CostElement;
 import com.glassgang.pmworkflow.estimate.entity.CostRate;
 import com.glassgang.pmworkflow.estimate.entity.ItemType;
 import com.glassgang.pmworkflow.estimate.entity.TaxRate;
 import com.glassgang.pmworkflow.estimate.enums.UnitOfMeasure;
+import com.glassgang.pmworkflow.estimate.repository.BidRepository;
 import com.glassgang.pmworkflow.estimate.repository.BidRevisionItemCostRepository;
 import com.glassgang.pmworkflow.estimate.repository.BidRevisionItemRepository;
+import com.glassgang.pmworkflow.estimate.repository.ConstructionObjectTypeRepository;
 import com.glassgang.pmworkflow.estimate.repository.CostElementRepository;
 import com.glassgang.pmworkflow.estimate.repository.CostRateRepository;
 import com.glassgang.pmworkflow.estimate.repository.ItemTypeRepository;
@@ -44,6 +50,8 @@ public class DictionaryService {
     private final BidRevisionItemRepository bidRevisionItemRepository;
     private final BidRevisionItemCostRepository bidRevisionItemCostRepository;
     private final EstimateAccessService estimateAccessService;
+    private final ConstructionObjectTypeRepository constructionObjectTypeRepository;
+    private final BidRepository bidRepository;
 
     public DictionaryService(
             ItemTypeRepository itemTypeRepository,
@@ -52,7 +60,9 @@ public class DictionaryService {
             CostRateRepository costRateRepository,
             BidRevisionItemRepository bidRevisionItemRepository,
             BidRevisionItemCostRepository bidRevisionItemCostRepository,
-            EstimateAccessService estimateAccessService) {
+            EstimateAccessService estimateAccessService,
+            ConstructionObjectTypeRepository constructionObjectTypeRepository,
+            BidRepository bidRepository) {
         this.itemTypeRepository = itemTypeRepository;
         this.taxRateRepository = taxRateRepository;
         this.costElementRepository = costElementRepository;
@@ -60,6 +70,8 @@ public class DictionaryService {
         this.bidRevisionItemRepository = bidRevisionItemRepository;
         this.bidRevisionItemCostRepository = bidRevisionItemCostRepository;
         this.estimateAccessService = estimateAccessService;
+        this.constructionObjectTypeRepository = constructionObjectTypeRepository;
+        this.bidRepository = bidRepository;
     }
 
     @Transactional(readOnly = true)
@@ -489,6 +501,102 @@ public class DictionaryService {
         costRateRepository.save(costRate);
     }
 
+    @Transactional(readOnly = true)
+    public List<ConstructionObjectTypeResponse> getConstructionObjectTypes() {
+        return constructionObjectTypeRepository.findByIsDeletedFalseOrderByCodeAsc()
+                .stream()
+                .map(this::toConstructionObjectTypeResponse)
+                .toList();
+    }
+
+    @Transactional
+    public ConstructionObjectTypeResponse createConstructionObjectType(
+            CreateConstructionObjectTypeRequest request) {
+        estimateAccessService.requireEstimateDictionaryManageAccess();
+
+        String code = normalizeCode(request.getCode());
+
+        if (constructionObjectTypeRepository.existsByCode(code)) {
+            throw new BusinessRuleException("Construction object type code already exists");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+
+        ConstructionObjectType constructionObjectType = new ConstructionObjectType();
+        constructionObjectType.setConstructionObjectTypeId(UUID.randomUUID());
+        constructionObjectType.setCode(code);
+        constructionObjectType.setName(request.getName().trim());
+        constructionObjectType.setDescription(request.getDescription());
+        constructionObjectType.setIsActive(request.getIsActive() != null ? request.getIsActive() : true);
+        constructionObjectType.setIsDeleted(false);
+        constructionObjectType.setCreatedAtUtc(now);
+        constructionObjectType.setUpdatedAtUtc(now);
+
+        return toConstructionObjectTypeResponse(
+                constructionObjectTypeRepository.save(constructionObjectType));
+    }
+
+    @Transactional
+    public ConstructionObjectTypeResponse updateConstructionObjectType(
+            UUID constructionObjectTypeId,
+            UpdateConstructionObjectTypeRequest request) {
+        estimateAccessService.requireEstimateDictionaryManageAccess();
+
+        ConstructionObjectType constructionObjectType = constructionObjectTypeRepository
+                .findById(constructionObjectTypeId)
+                .filter(existing -> !Boolean.TRUE.equals(existing.getIsDeleted()))
+                .orElseThrow(() -> new NotFoundException("Construction object type not found"));
+
+        if (request.getCode() != null) {
+            String code = normalizeCode(request.getCode());
+
+            constructionObjectTypeRepository.findByCode(code)
+                    .filter(existing -> !existing.getConstructionObjectTypeId()
+                            .equals(constructionObjectTypeId))
+                    .ifPresent(existing -> {
+                        throw new BusinessRuleException(
+                                "Construction object type code already exists");
+                    });
+
+            constructionObjectType.setCode(code);
+        }
+
+        if (request.getName() != null) {
+            constructionObjectType.setName(request.getName().trim());
+        }
+
+        if (request.getDescription() != null) {
+            constructionObjectType.setDescription(request.getDescription());
+        }
+
+        if (request.getIsActive() != null) {
+            constructionObjectType.setIsActive(request.getIsActive());
+        }
+
+        constructionObjectType.setUpdatedAtUtc(LocalDateTime.now());
+
+        return toConstructionObjectTypeResponse(
+                constructionObjectTypeRepository.save(constructionObjectType));
+    }
+
+    @Transactional
+    public void deleteConstructionObjectType(UUID constructionObjectTypeId) {
+        estimateAccessService.requireEstimateDictionaryManageAccess();
+
+        ConstructionObjectType constructionObjectType = constructionObjectTypeRepository
+                .findById(constructionObjectTypeId)
+                .filter(existing -> !Boolean.TRUE.equals(existing.getIsDeleted()))
+                .orElseThrow(() -> new NotFoundException("Construction object type not found"));
+
+        if (bidRepository.existsByConstructionObjectType_ConstructionObjectTypeIdAndIsDeletedFalse(
+                constructionObjectTypeId)) {
+            throw new BusinessRuleException(
+                    "Cannot delete construction object type because it is used by bids");
+        }
+        softDelete(constructionObjectType);
+        constructionObjectTypeRepository.save(constructionObjectType);
+    }
+
     private void unsetOtherDefaultTaxRates(UUID keepTaxRateId) {
         taxRateRepository.findByIsDefaultTrueAndIsDeletedFalseAndIsActiveTrue()
                 .filter(existing -> keepTaxRateId == null
@@ -530,6 +638,14 @@ public class DictionaryService {
         costRate.setIsDeleted(true);
         costRate.setDeletedAtUtc(now);
         costRate.setUpdatedAtUtc(now);
+    }
+
+    private void softDelete(ConstructionObjectType constructionObjectType) {
+        LocalDateTime now = LocalDateTime.now();
+        constructionObjectType.setIsActive(false);
+        constructionObjectType.setIsDeleted(true);
+        constructionObjectType.setDeletedAtUtc(now);
+        constructionObjectType.setUpdatedAtUtc(now);
     }
 
     private ItemTypeResponse toItemTypeResponse(ItemType itemType) {
@@ -582,19 +698,31 @@ public class DictionaryService {
         return response;
     }
 
+    private ConstructionObjectTypeResponse toConstructionObjectTypeResponse(
+            ConstructionObjectType constructionObjectType) {
+        ConstructionObjectTypeResponse response = new ConstructionObjectTypeResponse();
+        response.setConstructionObjectTypeId(
+                constructionObjectType.getConstructionObjectTypeId());
+        response.setCode(constructionObjectType.getCode());
+        response.setName(constructionObjectType.getName());
+        response.setDescription(constructionObjectType.getDescription());
+        response.setIsActive(constructionObjectType.getIsActive());
+        return response;
+    }
+
     private String normalizeCode(String code) {
         return code.trim().toUpperCase();
     }
 
     private String toUnitOfMeasureName(UnitOfMeasure unit) {
-    return switch (unit) {
-        case HOUR -> "Hour";
-        case DAY -> "Day";
-        case NIGHT -> "Night";
-        case EACH -> "Each";
-        case SQFT -> "Square Foot";
-        case LF -> "Linear Foot";
-        case UNIT -> "Unit";
-    };
-}
+        return switch (unit) {
+            case HOUR -> "Hour";
+            case DAY -> "Day";
+            case NIGHT -> "Night";
+            case EACH -> "Each";
+            case SQFT -> "Square Foot";
+            case LF -> "Linear Foot";
+            case UNIT -> "Unit";
+        };
+    }
 }

@@ -1,7 +1,9 @@
 package com.glassgang.pmworkflow.estimate.controller;
 
+import com.glassgang.pmworkflow.estimate.dto.dictionary.ConstructionObjectTypeResponse;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.CostElementResponse;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.CostRateResponse;
+import com.glassgang.pmworkflow.estimate.dto.dictionary.CreateConstructionObjectTypeRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.CreateCostElementRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.CreateCostRateRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.CreateItemTypeRequest;
@@ -9,6 +11,7 @@ import com.glassgang.pmworkflow.estimate.dto.dictionary.CreateTaxRateRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.ItemTypeResponse;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.TaxRateResponse;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.UnitOfMeasureResponse;
+import com.glassgang.pmworkflow.estimate.dto.dictionary.UpdateConstructionObjectTypeRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.UpdateCostElementRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.UpdateCostRateRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.UpdateItemTypeRequest;
@@ -133,5 +136,29 @@ public class DictionaryController {
     @GetMapping("/unit-of-measures")
     public List<UnitOfMeasureResponse> getUnitOfMeasures() {
         return dictionaryService.getUnitOfMeasures();
+    }
+
+    @GetMapping("/construction-object-types")
+    public List<ConstructionObjectTypeResponse> getConstructionObjectTypes() {
+        return dictionaryService.getConstructionObjectTypes();
+    }
+
+    @PostMapping("/construction-object-types")
+    public ConstructionObjectTypeResponse createConstructionObjectType(
+            @Valid @RequestBody CreateConstructionObjectTypeRequest request) {
+        return dictionaryService.createConstructionObjectType(request);
+    }
+
+    @PatchMapping("/construction-object-types/{constructionObjectTypeId}")
+    public ConstructionObjectTypeResponse updateConstructionObjectType(
+            @PathVariable UUID constructionObjectTypeId,
+            @Valid @RequestBody UpdateConstructionObjectTypeRequest request) {
+        return dictionaryService.updateConstructionObjectType(constructionObjectTypeId, request);
+    }
+
+    @DeleteMapping("/construction-object-types/{constructionObjectTypeId}")
+    public void deleteConstructionObjectType(
+            @PathVariable UUID constructionObjectTypeId) {
+        dictionaryService.deleteConstructionObjectType(constructionObjectTypeId);
     }
 }

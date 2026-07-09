@@ -99,4 +99,8 @@ public class Bid {
     @JoinColumn(name = "default_tax_rate_id")
     private TaxRate defaultTaxRate;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "construction_object_type_id")
+    private ConstructionObjectType constructionObjectType;
+
 }

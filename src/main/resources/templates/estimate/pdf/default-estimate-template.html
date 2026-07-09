@@ -1,0 +1,98 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Estimate</title>
+</head>
+<body>
+
+<section data-pdf-block="TITLE_PAGE" id="i878" class="pdf-title-page">
+
+    <section data-pdf-block="LOGO" id="ikxm" class="pdf-logo-section">
+        {{#model.company.logoUrl}}
+        <img src="{{model.company.logoUrl}}" alt="Company Logo" contenteditable="false" class="pdf-logo">
+        {{/model.company.logoUrl}}
+    </section>
+
+    <section data-pdf-block="COMPANY_INFO" class="pdf-company-info">
+        <h1 id="is5qz">
+            <span id="iq1i6">
+                <span id="i5xid">{{model.company.companyName}}</span>
+            </span>
+        </h1>
+        <div id="im7ct"><span id="i1yak">{{model.company.addressLine1}}</span></div>
+        <div id="ipvad">{{model.company.addressLine2}}</div>
+        <div id="igoqj">{{model.company.city}} <span id="i2n68">{{model.company.state}}</span> {{model.company.postalCode}}</div>
+        <div id="it258"><span id="it431">{{model.company.phone}}</span></div>
+        <div id="iyrhn">{{model.company.email}}</div>
+        <div id="ik486"><span id="i444b">{{model.company.website}}</span></div>
+    </section>
+
+    <section data-pdf-block="CUSTOMER_INFO" class="pdf-customer-info">
+        <h2 id="i0jsd">Customer Info</h2>
+        <div id="i1lki" class="pdf-customer-name"><span id="igfgp">{{model.customer.displayName}}</span></div>
+        <div id="iecwe">{{model.customer.contact.contactName}}</div>
+        <div id="ih6cx"><span id="iqvwj">{{model.customer.contact.title}}</span></div>
+        <div id="ivv3u">{{model.customer.address.line1}}</div>
+        <div id="ij12k"><span id="i8nms">{{model.customer.address.line2}}</span></div>
+        <div id="ipvrh">{{model.customer.address.city}} <span id="iyc8m">{{model.customer.address.state}}</span> {{model.customer.address.postalCode}}</div>
+        <div id="ii02h">{{model.customer.phone}}</div>
+        <div id="i5wpo"><span id="iqe4y">{{model.customer.email}}</span></div>
+    </section>
+
+    <section data-pdf-block="JOB_INFO" class="pdf-job-info">
+        <h2 id="iaz5j">Job Info</h2>
+        <div id="i2l7x">Job Name: {{model.job.jobName}}</div>
+        <div id="izd5k">Job Number: <span id="i80x6">{{model.jobNumber}}</span></div>
+        <div id="irsri">Bid Number: {{model.bidNumber}}</div>
+        <div id="ihvmf">Construction Type: {{#label}}{{model.job.constructionType}}{{/label}}</div>
+        <div id="icoty">Construction Object Type: {{model.job.constructionObjectTypeName}}</div>
+        <div id="iumfh">Department: {{model.job.departmentCode}}</div>
+        <div id="i4cuk">Job Address: <span id="iy6k1">{{model.job.addressLine1}}</span> {{model.job.city}} {{model.job.state}} {{model.job.postalCode}}</div>
+    </section>
+
+    <section class="pdf-title-bottom-row">
+        <section data-pdf-block="SIGNATURE" class="pdf-signature-block">
+            <div class="pdf-signature-line"></div>
+            <div id="i79d51" class="pdf-signature-label">Signature</div>
+
+            <div class="pdf-date-line"></div>
+            <div class="pdf-signature-label">Date</div>
+        </section>
+
+        <section data-pdf-block="TOTAL_SUMMARY" class="pdf-title-total">
+            <div class="pdf-total-label">TOTAL PRICE</div>
+            <div class="pdf-total-value"><span id="ize8x2">{{#money}}{{model.totals.totalPrice}}{{/money}}</span></div>
+        </section>
+    </section>
+
+</section>
+
+<div class="pdf-page-break"></div>
+
+<section data-pdf-block="SCOPE_PAGE" class="pdf-scope-page">
+
+    <header class="pdf-scope-header">
+        <div>{{model.job.jobName}}</div>
+        <div>Revision: {{model.revisionDisplayName}}</div>
+        <div>{{model.revisionUpdatedAtUtc}}</div>
+    </header>
+
+    <section data-pdf-block="ESTIMATE_ITEMS_TABLE" id="ikp4z9">
+        <div data-pdf-placeholder="ESTIMATE_ITEMS_TABLE" id="ig718b">Estimate Items Table</div>
+    </section>
+
+    <section data-pdf-block="TOTAL_SUMMARY" class="pdf-scope-total-summary">
+        <div>Subtotal: {{#money}}{{model.totals.customerFacingSubtotalPrice}}{{/money}}</div>
+        <div>Tax: {{#money}}{{model.totals.taxAmount}}{{/money}}</div>
+        <div>Total: {{#money}}{{model.totals.totalPrice}}{{/money}}</div>
+    </section>
+
+    <footer class="pdf-footer">
+        Page <span class="pdf-page-number"></span>
+    </footer>
+
+</section>
+
+</body>
+</html>

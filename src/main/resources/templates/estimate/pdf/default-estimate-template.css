@@ -1,0 +1,375 @@
+/* PMW PDF letter/page defaults */
+@page {
+  size: Letter;
+  margin: 0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  width: 8.5in;
+  min-height: 11in;
+}
+
+.pdf-title-page,
+.pdf-scope-page {
+  width: 8.5in;
+  min-height: 11in;
+}
+
+.pdf-scope-page {
+  display: flex;
+  flex-direction: column;
+}
+
+.pdf-scope-header {
+  flex: 0 0 auto;
+}
+
+[data-pdf-block="ESTIMATE_ITEMS_TABLE"] {
+  width: 100%;
+  flex: 0 0 auto;
+}
+
+.pdf-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.pdf-scope-total-summary {
+  flex: 0 0 auto;
+}
+
+.pdf-footer {
+  flex: 0 0 auto;
+  margin-top: auto !important;
+}
+/* /PMW PDF letter/page defaults */
+
+body {
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  color: rgb(34, 34, 34);
+  margin: 0;
+}
+
+.pdf-title-page {
+  padding: 36px;
+}
+
+.pdf-scope-page {
+  padding: 36px;
+}
+
+.pdf-logo-section {
+  min-height: 70px;
+  margin-bottom: 20px;
+}
+
+.pdf-logo {
+  max-width: 180px;
+  max-height: 70px;
+  object-fit: contain;
+}
+
+.pdf-company-info {
+  margin-bottom: 28px;
+}
+
+.pdf-company-info h1 {
+  font-size: 24px;
+  margin: 0 0 8px 0;
+}
+
+.pdf-customer-info {
+  margin-top: 24px;
+  padding-top: 14px;
+  border-top: 1px solid rgb(221, 221, 221);
+}
+
+.pdf-job-info {
+  margin-top: 24px;
+  padding-top: 14px;
+  border-top: 1px solid rgb(221, 221, 221);
+}
+
+.pdf-customer-info h2,
+.pdf-job-info h2 {
+  font-size: 15px;
+  margin: 0 0 8px 0;
+}
+
+.pdf-customer-name {
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.pdf-title-bottom-row {
+  margin-top: 90px;
+  display: table;
+  width: 100%;
+}
+
+.pdf-signature-block {
+  display: table-cell;
+  width: 55%;
+  vertical-align: bottom;
+}
+
+.pdf-title-total {
+  display: table-cell;
+  width: 45%;
+  text-align: right;
+  vertical-align: bottom;
+}
+
+.pdf-signature-line {
+  width: 220px;
+  border-bottom: 1px solid rgb(34, 34, 34);
+  margin-top: 34px;
+}
+
+.pdf-date-line {
+  width: 220px;
+  border-bottom: 1px solid rgb(34, 34, 34);
+  margin-top: 34px;
+}
+
+.pdf-signature-label {
+  font-size: 10px;
+  color: rgb(85, 85, 85);
+  margin-top: 4px;
+}
+
+.pdf-total-label {
+  font-size: 13px;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.pdf-total-value {
+  font-size: 34px;
+  font-weight: bold;
+  margin-top: 6px;
+}
+
+.pdf-page-break {
+  page-break-before: always;
+  break-before: page;
+}
+
+.pdf-scope-header {
+  display: table;
+  width: 100%;
+  margin-bottom: 20px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgb(221, 221, 221);
+  font-size: 11px;
+}
+
+.pdf-scope-header > div {
+  display: table-cell;
+  width: 33.333%;
+}
+
+.pdf-scope-header > div:nth-child(2) {
+  text-align: center;
+}
+
+.pdf-scope-header > div:nth-child(3) {
+  text-align: right;
+}
+
+.pdf-items-table th {
+  text-align: left;
+  border-bottom: 2px solid rgb(34, 34, 34);
+  padding: 7px 6px;
+  font-size: 11px;
+}
+
+.pdf-items-table td {
+  border-bottom: 1px solid rgb(221, 221, 221);
+  padding: 7px 6px;
+  vertical-align: top;
+}
+
+.pdf-group-row td {
+  font-weight: bold;
+  background-color: rgb(242, 242, 242);
+}
+
+.pdf-item-type-row td {
+  font-weight: bold;
+  background-color: rgb(250, 250, 250);
+}
+
+.pdf-cost-row td {
+  font-size: 10px;
+  color: rgb(85, 85, 85);
+}
+
+.pdf-scope-total-summary {
+  width: 260px;
+  margin-left: auto;
+  margin-top: 24px;
+  border-top: 2px solid rgb(34, 34, 34);
+  padding-top: 8px;
+  text-align: right;
+  font-size: 13px;
+}
+
+.pdf-scope-total-summary div {
+  margin-top: 5px;
+}
+
+.pdf-scope-total-summary div:last-child {
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.pdf-footer {
+  margin-top: 30px;
+  padding-top: 8px;
+  border-top: 1px solid rgb(221, 221, 221);
+  text-align: right;
+  font-size: 10px;
+  color: rgb(119, 119, 119);
+}
+
+#ikxm {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+#is5qz {
+  text-align: center;
+  margin-bottom: 8px;
+  margin-top: 0;
+}
+
+#im7ct,
+#ipvad,
+#igoqj,
+#it258,
+#iyrhn,
+#ik486,
+#i0jsd,
+#i1lki,
+#iecwe,
+#ih6cx,
+#ivv3u,
+#ij12k,
+#ipvrh,
+#ii02h,
+#i5wpo,
+#iaz5j,
+#i2l7x,
+#izd5k,
+#irsri,
+#ihvmf,
+#icoty,
+#iumfh,
+#i4cuk {
+  text-align: center;
+}
+
+#i79d51 {
+  text-align: left;
+}
+
+#ize8x2 {
+  font-size: 16px;
+}
+
+#i5xid {
+  font-size: 20px;
+  margin-bottom: 0;
+  margin-top: 0;
+  font-family: Arial, sans-serif;
+  color: #000000;
+  line-height: 0.6;
+}
+
+#ig718b {
+  font-family: Arial, sans-serif;
+}
+
+#i444b {
+  text-align: center;
+  font-family: Arial, sans-serif;
+}
+
+/* PMW protected items table editable column widths */
+.pdf-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  margin-top: 12px;
+}
+
+.pdf-items-description-col {
+  width: 60%;
+}
+
+.pdf-items-qty-col {
+  width: 9%;
+}
+
+.pdf-items-unit-col {
+  width: 9%;
+}
+
+.pdf-items-price-col {
+  width: 22%;
+}
+
+.pdf-items-header-row th {
+  text-align: left;
+  border-bottom: 2px solid #222;
+  padding: 7px 6px;
+  font-size: 11px;
+}
+
+.pdf-items-description-cell,
+.pdf-items-qty-cell,
+.pdf-items-unit-cell,
+.pdf-items-price-cell {
+  border-bottom: 1px solid #ddd;
+  padding: 7px 6px;
+  vertical-align: top;
+}
+
+.pdf-items-qty-cell,
+.pdf-items-unit-cell,
+.pdf-items-price-cell {
+  text-align: right;
+}
+
+.pdf-items-description-header-cell,
+.pdf-items-qty-header-cell,
+.pdf-items-unit-header-cell,
+.pdf-items-price-header-cell {
+  font-weight: bold;
+}
+
+.pdf-cost-description-cell {
+  padding-left: 18px;
+}
+
+.pdf-item-notes,
+.pdf-cost-notes {
+  font-size: 10px;
+  color: #666;
+  margin-top: 3px;
+}
+
+.pdf-cost-rate {
+  font-size: 10px;
+  color: #777;
+}
+/* /PMW protected items table editable column widths */

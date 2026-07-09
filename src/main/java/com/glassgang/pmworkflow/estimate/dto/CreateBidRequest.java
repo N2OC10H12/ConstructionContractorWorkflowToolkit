@@ -50,6 +50,8 @@ public class CreateBidRequest {
     @NotNull(message = "constructionType is required")
     private ConstructionType constructionType;
 
+    private UUID constructionObjectTypeId;
+
     private EstimatePriceDisplayMode priceDisplayMode;
 
     private UUID defaultTaxRateId;

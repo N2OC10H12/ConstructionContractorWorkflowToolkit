@@ -37,5 +37,6 @@ public class UpdateBidRequest {
     private String description;
     private DepartmentCode departmentCode;
     private ConstructionType constructionType;
+    private UUID constructionObjectTypeId;
     private UUID defaultTaxRateId;
 }
