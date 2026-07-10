@@ -22,17 +22,11 @@ body {
 }
 
 .pdf-scope-page {
-  display: flex;
-  flex-direction: column;
-}
-
-.pdf-scope-header {
-  flex: 0 0 auto;
+  position: relative;
 }
 
 [data-pdf-block="ESTIMATE_ITEMS_TABLE"] {
   width: 100%;
-  flex: 0 0 auto;
 }
 
 .pdf-items-table {
@@ -41,13 +35,12 @@ body {
   table-layout: fixed;
 }
 
-.pdf-scope-total-summary {
-  flex: 0 0 auto;
-}
-
 .pdf-footer {
-  flex: 0 0 auto;
-  margin-top: auto !important;
+  position: absolute;
+  left: 36px;
+  right: 36px;
+  bottom: 36px;
+  margin-top: 0 !important;
 }
 /* /PMW PDF letter/page defaults */
 
@@ -63,7 +56,7 @@ body {
 }
 
 .pdf-scope-page {
-  padding: 36px;
+  padding: 36px 36px 72px 36px;
 }
 
 .pdf-logo-section {
@@ -233,7 +226,11 @@ body {
 }
 
 .pdf-footer {
-  margin-top: 30px;
+  position: absolute;
+  left: 36px;
+  right: 36px;
+  bottom: 36px;
+  margin-top: 0 !important;
   padding-top: 8px;
   border-top: 1px solid rgb(221, 221, 221);
   text-align: right;
