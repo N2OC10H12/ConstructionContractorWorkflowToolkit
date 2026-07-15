@@ -10,6 +10,7 @@ import com.glassgang.pmworkflow.estimate.dto.CreateBidRevisionRequest;
 import com.glassgang.pmworkflow.estimate.dto.DeleteRevisionGroupItemTypeRequest;
 import com.glassgang.pmworkflow.estimate.dto.DeleteRevisionGroupRequest;
 import com.glassgang.pmworkflow.estimate.dto.UpdateBidRequest;
+import com.glassgang.pmworkflow.estimate.dto.UpdateBidRevisionDisplayModesRequest;
 import com.glassgang.pmworkflow.estimate.dto.UpdateBidRevisionItemCostRequest;
 import com.glassgang.pmworkflow.estimate.dto.UpdateBidRevisionItemRequest;
 import com.glassgang.pmworkflow.estimate.service.BidService;
@@ -72,6 +73,14 @@ public class BidController {
             @Valid @RequestBody CreateBidRevisionRequest request) {
 
         return bidService.createRevision(bidId, request);
+    }
+
+    @PatchMapping("/revisions/{bidRevisionId}/display-modes")
+    public BidRevisionResponse updateRevisionDisplayModes(
+            @PathVariable UUID bidRevisionId,
+            @Valid @RequestBody UpdateBidRevisionDisplayModesRequest request) {
+
+        return bidService.updateRevisionDisplayModes(bidRevisionId, request);
     }
 
     @PostMapping("/revisions/{bidRevisionId}/send")

@@ -1,0 +1,32 @@
+"filename", "language", "JSON", "PostCSS", "HTML", "MS SQL", "Java", "comment", "blank", "total"
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\java\com\glassgang\pmworkflow\businesspartner\dto\CreateBusinessPartnerRequest.java", "Java", 0, 0, 0, 0, 13, 0, 5, 18
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\java\com\glassgang\pmworkflow\businesspartner\service\BusinessPartnerService.java", "Java", 0, 0, 0, 0, 123, 0, 28, 151
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\java\com\glassgang\pmworkflow\config\CorsConfig.java", "Java", 0, 0, 0, 0, 1, 0, 0, 1
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\java\com\glassgang\pmworkflow\estimate\controller\DictionaryController.java", "Java", 0, 0, 0, 0, 23, 0, 4, 27
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\java\com\glassgang\pmworkflow\estimate\dto\BidResponse.java", "Java", 0, 0, 0, 0, 3, 0, 0, 3
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\java\com\glassgang\pmworkflow\estimate\dto\CreateBidFromRevisionRequest.java", "Java", 0, 0, 0, 0, 1, 0, 0, 1
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\java\com\glassgang\pmworkflow\estimate\dto\CreateBidRequest.java", "Java", 0, 0, 0, 0, 1, 0, 1, 2
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\java\com\glassgang\pmworkflow\estimate\dto\UpdateBidRequest.java", "Java", 0, 0, 0, 0, 1, 0, 0, 1
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\java\com\glassgang\pmworkflow\estimate\dto\dictionary\ConstructionObjectTypeResponse.java", "Java", 0, 0, 0, 0, 13, 0, 4, 17
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\java\com\glassgang\pmworkflow\estimate\dto\dictionary\CreateConstructionObjectTypeRequest.java", "Java", 0, 0, 0, 0, 17, 0, 6, 23
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\java\com\glassgang\pmworkflow\estimate\dto\dictionary\UpdateConstructionObjectTypeRequest.java", "Java", 0, 0, 0, 0, 14, 0, 6, 20
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\java\com\glassgang\pmworkflow\estimate\entity\Bid.java", "Java", 0, 0, 0, 0, 3, 0, 1, 4
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\java\com\glassgang\pmworkflow\estimate\entity\ConstructionObjectType.java", "Java", 0, 0, 0, 0, 33, 0, 13, 46
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\java\com\glassgang\pmworkflow\estimate\mapper\BidMapper.java", "Java", 0, 0, 0, 0, 8, 0, 0, 8
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\java\com\glassgang\pmworkflow\estimate\pdf\EstimatePdfDownloadController.java", "Java", 0, 0, 0, 0, 34, 0, 8, 42
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\java\com\glassgang\pmworkflow\estimate\pdf\EstimatePdfGenerationService.java", "Java", 0, 0, 0, 0, 35, 0, 12, 47
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\java\com\glassgang\pmworkflow\estimate\pdf\EstimatePdfModelBuilder.java", "Java", 0, 0, 0, 0, 8, 0, 0, 8
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\java\com\glassgang\pmworkflow\estimate\pdf\EstimatePdfProtectedBlockRenderService.java", "Java", 0, 0, 0, 0, 6, 0, 0, 6
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\java\com\glassgang\pmworkflow\estimate\pdf\EstimatePdfTemplateDesignerRegistryService.java", "Java", 0, 0, 0, 0, 19, 0, 2, 21
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\java\com\glassgang\pmworkflow\estimate\pdf\EstimatePdfTemplateSeeder.java", "Java", 0, 0, 0, 0, 10, 0, 8, 18
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\java\com\glassgang\pmworkflow\estimate\pdf\model\EstimatePdfJobBlock.java", "Java", 0, 0, 0, 0, 4, 0, 0, 4
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\java\com\glassgang\pmworkflow\estimate\repository\BidRepository.java", "Java", 0, 0, 0, 0, 2, 0, 1, 3
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\java\com\glassgang\pmworkflow\estimate\repository\ConstructionObjectTypeRepository.java", "Java", 0, 0, 0, 0, 18, 0, 11, 29
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\java\com\glassgang\pmworkflow\estimate\service\BidService.java", "Java", 0, 0, 0, 0, 32, 0, 9, 41
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\java\com\glassgang\pmworkflow\estimate\service\DictionaryService.java", "Java", 0, 0, 0, 0, 106, 0, 22, 128
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\resources\db\migration\V23__create_construction_object_type.sql", "MS SQL", 0, 0, 0, 34, 0, 0, 2, 36
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\resources\db\migration\V24__add_construction_object_type_to_bid.sql", "MS SQL", 0, 0, 0, 8, 0, 0, 2, 10
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\resources\templates\estimate\pdf\default-estimate-template-definition.json", "JSON", 24, 0, 0, 0, 0, 0, 0, 24
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\resources\templates\estimate\pdf\default-estimate-template.css", "PostCSS", 0, 308, 0, 0, 0, 4, 60, 372
+"c:\Users\vlad\IdeaProjects\PMWorkflowTool\src\main\resources\templates\estimate\pdf\default-estimate-template.html", "HTML", 0, 0, 7, 0, 0, 0, 0, 7
+"Total", "-", 24, 308, 7, 42, 528, 4, 205, 1118

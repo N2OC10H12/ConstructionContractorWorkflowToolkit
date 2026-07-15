@@ -1,7 +1,5 @@
 package com.glassgang.pmworkflow.estimate.dto;
 
-import com.glassgang.pmworkflow.estimate.enums.CustomerDisplayMode;
-
 import lombok.Getter;
 import lombok.Setter;
 
@@ -77,5 +75,4 @@ public class BidRevisionItemResponse {
 
     private BigDecimal taxRatePercent;
 
-    private CustomerDisplayMode customerDisplayMode;
 }

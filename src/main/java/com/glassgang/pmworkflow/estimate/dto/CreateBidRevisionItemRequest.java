@@ -1,6 +1,5 @@
 package com.glassgang.pmworkflow.estimate.dto;
 
-import com.glassgang.pmworkflow.estimate.enums.CustomerDisplayMode;
 import java.util.UUID;
 
 import jakarta.validation.constraints.*;
@@ -39,9 +38,6 @@ public class CreateBidRevisionItemRequest {
 
     @NotNull(message = "taxRateId is required")
     private UUID taxRateId;
-
-    @NotNull(message = "customerDisplayMode is required")
-    private CustomerDisplayMode customerDisplayMode;
 
     @Size(max = 4000, message = "customerNote must be <= 4000 characters")
     private String customerNote;

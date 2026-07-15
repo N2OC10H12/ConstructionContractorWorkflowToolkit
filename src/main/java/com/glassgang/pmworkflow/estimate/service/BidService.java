@@ -17,6 +17,7 @@ import com.glassgang.pmworkflow.estimate.dto.CreateBidRevisionRequest;
 import com.glassgang.pmworkflow.estimate.dto.DeleteRevisionGroupItemTypeRequest;
 import com.glassgang.pmworkflow.estimate.dto.DeleteRevisionGroupRequest;
 import com.glassgang.pmworkflow.estimate.dto.UpdateBidRequest;
+import com.glassgang.pmworkflow.estimate.dto.UpdateBidRevisionDisplayModesRequest;
 import com.glassgang.pmworkflow.estimate.dto.UpdateBidRevisionItemCostRequest;
 import com.glassgang.pmworkflow.estimate.dto.UpdateBidRevisionItemRequest;
 import com.glassgang.pmworkflow.estimate.entity.Bid;
@@ -182,10 +183,8 @@ public class BidService {
         revision.setCreatedByUserId(currentUserId);
         revision.setUpdatedByUserId(currentUserId);
         revision.setIsDeleted(false);
-        revision.setPriceDisplayMode(
-                request.getPriceDisplayMode() != null
-                        ? request.getPriceDisplayMode()
-                        : EstimatePriceDisplayMode.ITEM_TYPE_LEVEL);
+        revision.setCustomerDisplayMode(CustomerDisplayMode.ITEM_LEVEL);
+        revision.setPriceDisplayMode(EstimatePriceDisplayMode.ITEM_TYPE_LEVEL);
 
         BidRevision savedRevision = bidRevisionRepository.save(revision);
 
@@ -422,12 +421,15 @@ public class BidService {
         newRevision.setUpdatedByUserId(currentUserId);
         newRevision.setIsDeleted(false);
 
+        newRevision.setCustomerDisplayMode(
+                sourceRevision.getCustomerDisplayMode() != null
+                        ? sourceRevision.getCustomerDisplayMode()
+                        : CustomerDisplayMode.ITEM_LEVEL);
+
         newRevision.setPriceDisplayMode(
-                request.getPriceDisplayMode() != null
-                        ? request.getPriceDisplayMode()
-                        : sourceRevision.getPriceDisplayMode() != null
-                                ? sourceRevision.getPriceDisplayMode()
-                                : EstimatePriceDisplayMode.ITEM_TYPE_LEVEL);
+                sourceRevision.getPriceDisplayMode() != null
+                        ? sourceRevision.getPriceDisplayMode()
+                        : EstimatePriceDisplayMode.ITEM_TYPE_LEVEL);
 
         BidRevision savedRevision = bidRevisionRepository.save(newRevision);
 
@@ -601,12 +603,15 @@ public class BidService {
 
         revision.setIsDeleted(false);
 
+        revision.setCustomerDisplayMode(
+                currentRevision.getCustomerDisplayMode() != null
+                        ? currentRevision.getCustomerDisplayMode()
+                        : CustomerDisplayMode.ITEM_LEVEL);
+
         revision.setPriceDisplayMode(
-                request.getPriceDisplayMode() != null
-                        ? request.getPriceDisplayMode()
-                        : currentRevision.getPriceDisplayMode() != null
-                                ? currentRevision.getPriceDisplayMode()
-                                : EstimatePriceDisplayMode.ITEM_TYPE_LEVEL);
+                currentRevision.getPriceDisplayMode() != null
+                        ? currentRevision.getPriceDisplayMode()
+                        : EstimatePriceDisplayMode.ITEM_TYPE_LEVEL);
 
         BidRevision savedRevision = bidRevisionRepository.save(revision);
 
@@ -634,6 +639,43 @@ public class BidService {
                 savedRevision.getRevisionDisplayName(),
                 "Revision created: " + savedRevision.getRevisionDisplayName()
                         + " from " + currentRevision.getRevisionDisplayName());
+
+        return bidMapper.toBidRevisionResponse(savedRevision);
+    }
+
+    @Transactional
+    public BidRevisionResponse updateRevisionDisplayModes(
+            UUID bidRevisionId,
+            UpdateBidRevisionDisplayModesRequest request) {
+
+        BidRevision revision = bidRevisionRepository
+                .findByBidRevisionIdAndIsDeletedFalse(bidRevisionId)
+                .orElseThrow(() -> new NotFoundException("Bid revision not found"));
+
+        Bid bid = revision.getBid();
+
+        estimateAccessService.requireBidEditAccess(bid);
+
+        ensureBidCanBeChanged(bid);
+        ensureCurrentRevisionCanBeChanged(bid, revision);
+
+        ensureDisplayModesCompatible(
+                request.getCustomerDisplayMode(),
+                request.getPriceDisplayMode());
+
+        LocalDateTime now = LocalDateTime.now();
+        UUID currentUserId = currentUserUtil.getCurrentUserId();
+
+        revision.setCustomerDisplayMode(request.getCustomerDisplayMode());
+        revision.setPriceDisplayMode(request.getPriceDisplayMode());
+        revision.setUpdatedAtUtc(now);
+        revision.setUpdatedByUserId(currentUserId);
+
+        BidRevision savedRevision = bidRevisionRepository.save(revision);
+
+        bid.setUpdatedAtUtc(now);
+        bid.setUpdatedByUserId(currentUserId);
+        bidRepository.save(bid);
 
         return bidMapper.toBidRevisionResponse(savedRevision);
     }
@@ -851,11 +893,6 @@ public class BidService {
 
         item.setItemType(itemType);
         applyTaxRateSnapshot(item, taxRate);
-
-        item.setCustomerDisplayMode(
-                request.getCustomerDisplayMode() != null
-                        ? request.getCustomerDisplayMode()
-                        : CustomerDisplayMode.ITEM_TOTAL_ONLY);
 
         item.setIsTaxable(true);
         item.setShowCustomerRow(true);
@@ -1152,10 +1189,6 @@ public class BidService {
         if (request.getTaxRateId() != null) {
             TaxRate taxRate = getActiveTaxRate(request.getTaxRateId());
             applyTaxRateSnapshot(item, taxRate);
-        }
-
-        if (request.getCustomerDisplayMode() != null) {
-            item.setCustomerDisplayMode(request.getCustomerDisplayMode());
         }
 
         if (request.getUnitCost() != null) {
@@ -1653,11 +1686,6 @@ public class BidService {
         clonedItem.setTaxRateSnapshotName(sourceItem.getTaxRateSnapshotName());
         clonedItem.setTaxRateSnapshotPercent(sourceItem.getTaxRateSnapshotPercent());
 
-        clonedItem.setCustomerDisplayMode(
-                sourceItem.getCustomerDisplayMode() != null
-                        ? sourceItem.getCustomerDisplayMode()
-                        : CustomerDisplayMode.ITEM_TOTAL_ONLY);
-
         clonedItem.setIsOptional(sourceItem.getIsOptional());
         clonedItem.setShowCustomerRow(sourceItem.getShowCustomerRow());
         clonedItem.setShowCustomerPrice(sourceItem.getShowCustomerPrice());
@@ -1825,5 +1853,49 @@ public class BidService {
         }
 
         applyDefaultTaxRateSnapshot(targetRevision, fallbackTaxRate);
+    }
+
+    private void ensureDisplayModesCompatible(
+            CustomerDisplayMode customerDisplayMode,
+            EstimatePriceDisplayMode priceDisplayMode) {
+
+        if (customerDisplayMode == null) {
+            throw new BadRequestException("Customer display mode is required");
+        }
+
+        if (priceDisplayMode == null) {
+            throw new BadRequestException("Price display mode is required");
+        }
+
+        if (priceDisplayMode == EstimatePriceDisplayMode.TOTALS) {
+            return;
+        }
+
+        int customerLevel = customerDisplayLevel(customerDisplayMode);
+        int priceLevel = priceDisplayLevel(priceDisplayMode);
+
+        if (priceLevel > customerLevel) {
+            throw new BusinessRuleException(
+                    "Price display mode cannot be more detailed than customer display mode");
+        }
+    }
+
+    private int customerDisplayLevel(CustomerDisplayMode mode) {
+        return switch (mode) {
+            case GROUP_LEVEL -> 1;
+            case ITEM_TYPE_LEVEL -> 2;
+            case ITEM_LEVEL -> 3;
+            case ITEM_COST_LEVEL -> 4;
+        };
+    }
+
+    private int priceDisplayLevel(EstimatePriceDisplayMode mode) {
+        return switch (mode) {
+            case TOTALS -> 0;
+            case GROUP_LEVEL -> 1;
+            case ITEM_TYPE_LEVEL -> 2;
+            case ITEM_LEVEL -> 3;
+            case ITEM_COST_LEVEL -> 4;
+        };
     }
 }

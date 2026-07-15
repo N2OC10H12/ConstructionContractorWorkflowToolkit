@@ -13,79 +13,91 @@ public class EstimatePdfProtectedBlockRenderService {
             Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
 
     private static final String ESTIMATE_ITEMS_TABLE_CONTENT = """
-            <table class="pdf-items-table">
-                <colgroup>
-                    <col class="pdf-items-description-col">
-                    <col class="pdf-items-qty-col">
-                    <col class="pdf-items-unit-col">
-                    <col class="pdf-items-price-col">
-                </colgroup>
-                <thead>
-                <tr class="pdf-items-header-row">
-                    <th class="pdf-items-description-cell pdf-items-description-header-cell">Description</th>
-                    <th class="pdf-items-qty-cell pdf-items-qty-header-cell">Qty</th>
-                    <th class="pdf-items-unit-cell pdf-items-unit-header-cell">Unit</th>
-                    <th class="pdf-items-price-cell pdf-items-price-header-cell">Price</th>
-                </tr>
-                </thead>
-                <tbody>
-                {{#model.groups}}
-                    <tr class="pdf-group-row">
-                        <td class="pdf-items-description-cell" colspan="3">{{groupName}}</td>
-                        <td class="pdf-items-price-cell">
-                            {{#showPrice}}{{#money}}{{totalPrice}}{{/money}}{{/showPrice}}
-                        </td>
-                    </tr>
-
-                    {{#itemTypes}}
-                        <tr class="pdf-item-type-row">
-                            <td class="pdf-items-description-cell" colspan="3">{{itemTypeName}}</td>
-                            <td class="pdf-items-price-cell">
-                                {{#showPrice}}{{#money}}{{totalPrice}}{{/money}}{{/showPrice}}
-                            </td>
-                        </tr>
-
-                        {{#items}}
-                            <tr class="pdf-item-row">
-                                <td class="pdf-items-description-cell">
-                                    <div class="pdf-item-name">{{description}}</div>
-                                    {{#customerNote}}
-                                        <div class="pdf-item-notes">{{customerNote}}</div>
-                                    {{/customerNote}}
-                                </td>
-                                <td class="pdf-items-qty-cell">{{quantity}}</td>
-                                <td class="pdf-items-unit-cell">{{unitOfMeasure}}</td>
-                                <td class="pdf-items-price-cell">
-                                    {{#showPrice}}{{#money}}{{priceWithTax}}{{/money}}{{/showPrice}}
-                                </td>
+                        <table class="pdf-items-table">
+                            <colgroup>
+                                <col class="pdf-items-description-col">
+                                <col class="pdf-items-qty-col">
+                                <col class="pdf-items-unit-col">
+                                {{#model.showHierarchyPriceColumn}}
+                                    <col class="pdf-items-price-col">
+                                {{/model.showHierarchyPriceColumn}}
+                            </colgroup>
+                            <thead>
+                            <tr class="pdf-items-header-row">
+                                <th class="pdf-items-description-cell pdf-items-description-header-cell">Description</th>
+                                <th class="pdf-items-qty-cell pdf-items-qty-header-cell">Qty</th>
+                                <th class="pdf-items-unit-cell pdf-items-unit-header-cell">Unit</th>
+                                {{#model.showHierarchyPriceColumn}}
+                                    <th class="pdf-items-price-cell pdf-items-price-header-cell">Price</th>
+                                {{/model.showHierarchyPriceColumn}}
                             </tr>
-
-                            {{#showCostLines}}
-                                {{#costs}}
-                                    <tr class="pdf-cost-row">
-                                        <td class="pdf-items-description-cell pdf-cost-description-cell">
-                                            <div class="pdf-cost-element">{{costElementName}}</div>
-                                            {{#costRateName}}
-                                                <div class="pdf-cost-rate">{{costRateName}}</div>
-                                            {{/costRateName}}
-                                            {{#customerNote}}
-                                                <div class="pdf-cost-notes">{{customerNote}}</div>
-                                            {{/customerNote}}
-                                        </td>
-                                        <td class="pdf-items-qty-cell">{{quantity}}</td>
-                                        <td class="pdf-items-unit-cell">{{unitOfMeasure}}</td>
+                            </thead>
+                            <tbody>
+                            {{#model.groups}}
+                                <tr class="pdf-group-row">
+                                    <td class="pdf-items-description-cell" colspan="3">{{groupName}}</td>
+                                    {{#model.showHierarchyPriceColumn}}
                                         <td class="pdf-items-price-cell">
-                                            {{#showPrice}}{{#money}}{{priceWithTax}}{{/money}}{{/showPrice}}
+                                            {{#showPrice}}{{#money}}{{totalPrice}}{{/money}}{{/showPrice}}
                                         </td>
+                                    {{/model.showHierarchyPriceColumn}}
+                                </tr>
+
+                                {{#itemTypes}}
+                                    <tr class="pdf-item-type-row">
+                                        <td class="pdf-items-description-cell" colspan="3">{{itemTypeName}}</td>
+                                        {{#model.showHierarchyPriceColumn}}
+                                            <td class="pdf-items-price-cell">
+                                                {{#showPrice}}{{#money}}{{totalPrice}}{{/money}}{{/showPrice}}
+                                            </td>
+                                        {{/model.showHierarchyPriceColumn}}
                                     </tr>
-                                {{/costs}}
-                            {{/showCostLines}}
-                        {{/items}}
-                    {{/itemTypes}}
-                {{/model.groups}}
-                </tbody>
-            </table>
-            """;
+
+                                    {{#items}}
+                                        <tr class="pdf-item-row">
+                                            <td class="pdf-items-description-cell">
+                                                <div class="pdf-item-name">{{description}}</div>
+                                                {{#customerNote}}
+                                                    <div class="pdf-item-notes">{{customerNote}}</div>
+                                                {{/customerNote}}
+                                            </td>
+                                            <td class="pdf-items-qty-cell">{{#formatQuantity}}{{quantity}}{{/formatQuantity}}</td>
+                                            <td class="pdf-items-unit-cell">{{unitOfMeasure}}</td>
+                                            {{#model.showHierarchyPriceColumn}}
+                                                <td class="pdf-items-price-cell">
+                                                    {{#showPrice}}{{#money}}{{totalPrice}}{{/money}}{{/showPrice}}
+                                                </td>
+                                            {{/model.showHierarchyPriceColumn}}
+                                        </tr>
+
+                                        {{#showCostLines}}
+                                            {{#costs}}
+                                                <tr class="pdf-cost-row">
+                                                    <td class="pdf-items-description-cell pdf-cost-description-cell">
+                                                        <div class="pdf-cost-element">{{costElementName}}</div>
+                                                        {{#costRateName}}
+                                                            <div class="pdf-cost-rate">{{costRateName}}</div>
+                                                        {{/costRateName}}
+                                                        {{#customerNote}}
+                                                            <div class="pdf-cost-notes">{{customerNote}}</div>
+                                                        {{/customerNote}}
+                                                    </td>
+                                                    <td class="pdf-items-qty-cell">{{#formatQuantity}}{{quantity}}{{/formatQuantity}}</td>
+                                                    <td class="pdf-items-unit-cell">{{unitOfMeasure}}</td>
+                                                    {{#model.showHierarchyPriceColumn}}
+                                                        <td class="pdf-items-price-cell">
+                                                            {{#showPrice}}{{#money}}{{totalPrice}}{{/money}}{{/showPrice}}
+                                                        </td>
+                                                    {{/model.showHierarchyPriceColumn}}
+                                                </tr>
+                                            {{/costs}}
+                                        {{/showCostLines}}
+                                    {{/items}}
+                                {{/itemTypes}}
+                            {{/model.groups}}
+                            </tbody>
+                        </table>
+                        """;
 
     public String applyProtectedBlocks(String htmlTemplate) {
         if (htmlTemplate == null || htmlTemplate.isBlank()) {

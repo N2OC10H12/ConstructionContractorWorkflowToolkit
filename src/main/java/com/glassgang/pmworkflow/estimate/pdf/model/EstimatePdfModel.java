@@ -1,6 +1,8 @@
 package com.glassgang.pmworkflow.estimate.pdf.model;
 
 import com.glassgang.pmworkflow.estimate.enums.EstimatePriceDisplayMode;
+import com.glassgang.pmworkflow.estimate.enums.CustomerDisplayMode;
+
 import lombok.Getter;
 import lombok.Setter;
 
@@ -24,7 +26,10 @@ public class EstimatePdfModel {
     private LocalDateTime createdAtUtc;
     private LocalDateTime revisionUpdatedAtUtc;
 
+    private CustomerDisplayMode customerDisplayMode;
     private EstimatePriceDisplayMode priceDisplayMode;
+    
+    private Boolean showHierarchyPriceColumn;
     private Boolean showTitleTotalPrice;
 
     private EstimatePdfCompanyBlock company;

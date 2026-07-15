@@ -1,7 +1,5 @@
 package com.glassgang.pmworkflow.estimate.entity;
 
-import com.glassgang.pmworkflow.estimate.enums.CustomerDisplayMode;
-
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -125,8 +123,4 @@ public class BidRevisionItem {
 
     @Column(name = "tax_rate_snapshot_percent", precision = 9, scale = 4)
     private BigDecimal taxRateSnapshotPercent;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "customer_display_mode", nullable = false, length = 80)
-    private CustomerDisplayMode customerDisplayMode;
 }

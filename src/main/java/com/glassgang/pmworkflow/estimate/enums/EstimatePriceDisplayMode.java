@@ -1,7 +1,7 @@
 package com.glassgang.pmworkflow.estimate.enums;
 
 public enum EstimatePriceDisplayMode {
-    HIDDEN,
+    TOTALS,
     GROUP_LEVEL,
     ITEM_TYPE_LEVEL,
     ITEM_LEVEL,

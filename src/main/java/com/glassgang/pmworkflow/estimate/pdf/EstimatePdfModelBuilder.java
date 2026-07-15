@@ -12,6 +12,7 @@ import com.glassgang.pmworkflow.estimate.entity.BidRevision;
 import com.glassgang.pmworkflow.estimate.entity.BidRevisionItem;
 import com.glassgang.pmworkflow.estimate.entity.BidRevisionItemCost;
 import com.glassgang.pmworkflow.estimate.enums.EstimatePriceDisplayMode;
+import com.glassgang.pmworkflow.estimate.enums.CustomerDisplayMode;
 import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfAddressBlock;
 import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfCompanyBlock;
 import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfContactBlock;
@@ -27,6 +28,7 @@ import com.glassgang.pmworkflow.estimate.repository.BidRevisionItemCostRepositor
 import com.glassgang.pmworkflow.estimate.repository.BidRevisionItemRepository;
 import com.glassgang.pmworkflow.estimate.repository.BidRevisionRepository;
 import com.glassgang.pmworkflow.estimate.service.EstimateAccessService;
+
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -89,7 +91,19 @@ public class EstimatePdfModelBuilder {
         model.setRevisionDisplayName(revision.getRevisionDisplayName());
         model.setCreatedAtUtc(revision.getCreatedAtUtc());
         model.setRevisionUpdatedAtUtc(revision.getUpdatedAtUtc());
-        model.setPriceDisplayMode(revision.getPriceDisplayMode());
+
+        model.setCustomerDisplayMode(
+                revision.getCustomerDisplayMode() != null
+                        ? revision.getCustomerDisplayMode()
+                        : CustomerDisplayMode.ITEM_LEVEL);
+
+        model.setPriceDisplayMode(
+                revision.getPriceDisplayMode() != null
+                        ? revision.getPriceDisplayMode()
+                        : EstimatePriceDisplayMode.ITEM_TYPE_LEVEL);
+
+        model.setShowHierarchyPriceColumn(
+                model.getPriceDisplayMode() != EstimatePriceDisplayMode.TOTALS);
 
         model.setShowTitleTotalPrice(true);
 
@@ -103,6 +117,7 @@ public class EstimatePdfModelBuilder {
                         bidRevisionId);
 
         model.getGroups().addAll(buildGroups(items));
+        applyCustomerDisplayMode(model);
         applyPriceDisplayMode(model);
 
         return model;
@@ -396,16 +411,24 @@ public class EstimatePdfModelBuilder {
     }
 
     private void applyPriceDisplayMode(EstimatePdfModel model) {
-        EstimatePriceDisplayMode mode = model.getPriceDisplayMode() != null
+        EstimatePriceDisplayMode priceMode = model.getPriceDisplayMode() != null
                 ? model.getPriceDisplayMode()
                 : EstimatePriceDisplayMode.ITEM_TYPE_LEVEL;
 
-        boolean showGroupPrice = mode == EstimatePriceDisplayMode.GROUP_LEVEL;
-        boolean showItemTypePrice = mode == EstimatePriceDisplayMode.ITEM_TYPE_LEVEL;
-        boolean showItemPrice = mode == EstimatePriceDisplayMode.ITEM_LEVEL
-                || mode == EstimatePriceDisplayMode.ITEM_COST_LEVEL;
-        boolean showCostLines = mode == EstimatePriceDisplayMode.ITEM_COST_LEVEL;
-        boolean showCostPrice = mode == EstimatePriceDisplayMode.ITEM_COST_LEVEL;
+        CustomerDisplayMode customerMode = model.getCustomerDisplayMode() != null
+                ? model.getCustomerDisplayMode()
+                : CustomerDisplayMode.ITEM_LEVEL;
+
+        boolean showGroupPrice = priceMode == EstimatePriceDisplayMode.GROUP_LEVEL;
+
+        boolean showItemTypePrice = priceMode == EstimatePriceDisplayMode.ITEM_TYPE_LEVEL;
+
+        boolean showItemPrice = priceMode == EstimatePriceDisplayMode.ITEM_LEVEL
+                || priceMode == EstimatePriceDisplayMode.ITEM_COST_LEVEL;
+
+        boolean showCostLines = customerMode == CustomerDisplayMode.ITEM_COST_LEVEL;
+
+        boolean showCostPrice = priceMode == EstimatePriceDisplayMode.ITEM_COST_LEVEL;
 
         for (EstimatePdfGroup group : model.getGroups()) {
             group.setShowPrice(showGroupPrice);
@@ -419,6 +442,32 @@ public class EstimatePdfModelBuilder {
 
                     for (EstimatePdfItemCostLine cost : item.getCosts()) {
                         cost.setShowPrice(showCostPrice);
+                    }
+                }
+            }
+        }
+    }
+
+    private void applyCustomerDisplayMode(EstimatePdfModel model) {
+        CustomerDisplayMode mode = model.getCustomerDisplayMode() != null
+                ? model.getCustomerDisplayMode()
+                : CustomerDisplayMode.ITEM_LEVEL;
+
+        for (EstimatePdfGroup group : model.getGroups()) {
+            if (mode == CustomerDisplayMode.GROUP_LEVEL) {
+                group.getItemTypes().clear();
+                continue;
+            }
+
+            for (EstimatePdfItemTypeGroup itemTypeGroup : group.getItemTypes()) {
+                if (mode == CustomerDisplayMode.ITEM_TYPE_LEVEL) {
+                    itemTypeGroup.getItems().clear();
+                    continue;
+                }
+
+                for (EstimatePdfItemLine item : itemTypeGroup.getItems()) {
+                    if (mode == CustomerDisplayMode.ITEM_LEVEL) {
+                        item.getCosts().clear();
                     }
                 }
             }

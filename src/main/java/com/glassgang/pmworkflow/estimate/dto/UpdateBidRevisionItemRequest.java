@@ -1,6 +1,5 @@
 package com.glassgang.pmworkflow.estimate.dto;
 
-import com.glassgang.pmworkflow.estimate.enums.CustomerDisplayMode;
 import java.util.UUID;
 
 import jakarta.validation.constraints.DecimalMin;
@@ -37,8 +36,6 @@ public class UpdateBidRevisionItemRequest {
     private UUID itemTypeId;
 
     private UUID taxRateId;
-
-    private CustomerDisplayMode customerDisplayMode;
 
     @DecimalMin(value = "0.0000", message = "unitCost must be >= 0.0000")
     private BigDecimal unitCost;

@@ -1,6 +1,7 @@
 package com.glassgang.pmworkflow.estimate.entity;
 
 import com.glassgang.pmworkflow.estimate.enums.EstimatePriceDisplayMode;
+import com.glassgang.pmworkflow.estimate.enums.CustomerDisplayMode;
 import com.glassgang.pmworkflow.estimate.enums.RevisionStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -98,6 +99,10 @@ public class BidRevision {
     @Enumerated(EnumType.STRING)
     @Column(name = "price_display_mode", nullable = false, length = 50)
     private EstimatePriceDisplayMode priceDisplayMode;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "customer_display_mode", nullable = false, length = 50)
+    private CustomerDisplayMode customerDisplayMode;
 
     @Column(name = "default_tax_rate_snapshot_code", length = 50)
     private String defaultTaxRateSnapshotCode;

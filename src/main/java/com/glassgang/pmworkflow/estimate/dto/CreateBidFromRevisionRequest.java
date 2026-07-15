@@ -2,7 +2,6 @@ package com.glassgang.pmworkflow.estimate.dto;
 
 import com.glassgang.pmworkflow.estimate.enums.ConstructionType;
 import com.glassgang.pmworkflow.estimate.enums.DepartmentCode;
-import com.glassgang.pmworkflow.estimate.enums.EstimatePriceDisplayMode;
 
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -25,5 +24,4 @@ public class CreateBidFromRevisionRequest {
     private DepartmentCode departmentCode;
     private ConstructionType constructionType;
     private UUID constructionObjectTypeId;
-    private EstimatePriceDisplayMode priceDisplayMode;
 }

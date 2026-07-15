@@ -20,7 +20,8 @@ public class CorsConfig {
                                 "http://127.0.0.1:5173",
                                 "http://192.168.0.19:5173",
                                 "http://pm-dashboard.glassgang.com:5173",
-                                "http://mirror.glassgang.com:5173"));
+                                "http://mirror.glassgang.com:5173",
+                                "http://24.227.152.13:5173"));
 
                 config.setAllowedMethods(List.of(
                                 "GET",

@@ -119,6 +119,7 @@ public class EstimatePdfTemplateRenderService {
         context.put("hasCompany", hasCompany(model));
         context.put("hasTaxRate", hasTaxRate(model));
         context.put("hasJobAddress", hasJobAddress(model));
+        context.put("formatQuantity", quantityLambda());
 
         return context;
     }
@@ -218,5 +219,26 @@ public class EstimatePdfTemplateRenderService {
 
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private Mustache.Lambda quantityLambda() {
+        return (Template.Fragment fragment, java.io.Writer writer) -> {
+            String rawValue = fragment.execute();
+
+            if (rawValue == null || rawValue.isBlank()) {
+                return;
+            }
+
+            writer.write(formatQuantity(rawValue.trim()));
+        };
+    }
+
+    private String formatQuantity(String rawValue) {
+        try {
+            BigDecimal value = new BigDecimal(rawValue);
+            return value.stripTrailingZeros().toPlainString();
+        } catch (NumberFormatException exception) {
+            return rawValue;
+        }
     }
 }

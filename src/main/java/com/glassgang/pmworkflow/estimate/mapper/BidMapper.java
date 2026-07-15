@@ -85,6 +85,7 @@ public class BidMapper {
                 response.setRevisionNumber(bidRevision.getRevisionNumber());
                 response.setRevisionDisplayName(bidRevision.getRevisionDisplayName());
                 response.setRevisionStatus(bidRevision.getRevisionStatus());
+                response.setCustomerDisplayMode(bidRevision.getCustomerDisplayMode());
                 response.setPriceDisplayMode(bidRevision.getPriceDisplayMode());
 
                 response.setDefaultTaxRateSnapshotCode(bidRevision.getDefaultTaxRateSnapshotCode());
@@ -169,8 +170,6 @@ public class BidMapper {
                 response.setTaxRateCode(item.getTaxRateSnapshotCode());
                 response.setTaxRateName(item.getTaxRateSnapshotName());
                 response.setTaxRatePercent(item.getTaxRateSnapshotPercent());
-
-                response.setCustomerDisplayMode(item.getCustomerDisplayMode());
 
                 return response;
         }

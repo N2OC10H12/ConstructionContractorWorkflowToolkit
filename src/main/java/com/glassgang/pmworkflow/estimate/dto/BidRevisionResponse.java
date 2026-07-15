@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 import com.glassgang.pmworkflow.estimate.enums.EstimatePriceDisplayMode;
+import com.glassgang.pmworkflow.estimate.enums.CustomerDisplayMode;
 import com.glassgang.pmworkflow.estimate.enums.RevisionStatus;
 
 @Getter
@@ -23,6 +24,7 @@ public class BidRevisionResponse {
     private BigDecimal taxAmount;
     private BigDecimal totalPrice;
     private String customerNote;
+    private CustomerDisplayMode customerDisplayMode;
     private EstimatePriceDisplayMode priceDisplayMode;
     private LocalDateTime sentAtUtc;
     private LocalDateTime awardedAtUtc;
