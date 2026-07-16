@@ -75,22 +75,18 @@
     <header class="pdf-scope-header">
         <div>{{model.job.jobName}}</div>
         <div>Revision: {{model.revisionDisplayName}}</div>
-        <div>{{model.revisionUpdatedAtUtc}}</div>
+        <div>{{#dateOnly}}{{model.revisionUpdatedAtUtc}}{{/dateOnly}}</div>
     </header>
-
-    <section data-pdf-block="ESTIMATE_ITEMS_TABLE" id="ikp4z9">
-        <div data-pdf-placeholder="ESTIMATE_ITEMS_TABLE" id="ig718b">Estimate Items Table</div>
-    </section>
-
-    <section data-pdf-block="TOTAL_SUMMARY" class="pdf-scope-total-summary">
-        <div>Subtotal: {{#money}}{{model.totals.customerFacingSubtotalPrice}}{{/money}}</div>
-        <div>Tax: {{#money}}{{model.totals.taxAmount}}{{/money}}</div>
-        <div>Total: {{#money}}{{model.totals.totalPrice}}{{/money}}</div>
-    </section>
 
     <footer class="pdf-footer">
         Page <span class="pdf-page-number"></span>
     </footer>
+
+    <section data-pdf-block="ESTIMATE_ITEMS_TABLE" id="ikp4z9">
+        <div data-pdf-placeholder="ESTIMATE_ITEMS_TABLE" id="ig718b">
+            Estimate Items Table
+        </div>
+    </section>
 
 </section>
 

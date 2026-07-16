@@ -4,6 +4,7 @@ import com.glassgang.pmworkflow.estimate.dto.pdf.PreviewEstimatePdfTemplateReque
 import com.glassgang.pmworkflow.estimate.entity.EstimatePdfTemplate;
 import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfJobBlock;
 import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfModel;
+import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfPrintableRowPartition;
 import com.glassgang.pmworkflow.estimate.repository.EstimatePdfTemplateRepository;
 import com.samskivert.mustache.Mustache;
 import com.samskivert.mustache.Template;
@@ -16,6 +17,12 @@ import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -24,22 +31,30 @@ import java.util.UUID;
 @Service
 public class EstimatePdfTemplateRenderService {
 
-    private static final String DEFAULT_CLASSPATH_TEMPLATE_PATH = "templates/estimate/pdf/default-estimate-template.html";
+    private static final String DEFAULT_CLASSPATH_TEMPLATE_PATH =
+            "templates/estimate/pdf/default-estimate-template.html";
+
+    private static final DateTimeFormatter DATE_ONLY_FORMATTER =
+            DateTimeFormatter.ISO_LOCAL_DATE;
 
     private final EstimatePdfModelBuilder estimatePdfModelBuilder;
     private final EstimatePdfTemplateRepository estimatePdfTemplateRepository;
     private final EstimatePdfTemplateValidationService estimatePdfTemplateValidationService;
     private final EstimatePdfProtectedBlockRenderService protectedBlockRenderService;
+    private final EstimatePdfPrintableRowPartitionService printableRowPartitionService;
 
     public EstimatePdfTemplateRenderService(
             EstimatePdfModelBuilder estimatePdfModelBuilder,
             EstimatePdfTemplateRepository estimatePdfTemplateRepository,
             EstimatePdfTemplateValidationService estimatePdfTemplateValidationService,
-            EstimatePdfProtectedBlockRenderService protectedBlockRenderService) {
+            EstimatePdfProtectedBlockRenderService protectedBlockRenderService,
+            EstimatePdfPrintableRowPartitionService printableRowPartitionService) {
+
         this.estimatePdfModelBuilder = estimatePdfModelBuilder;
         this.estimatePdfTemplateRepository = estimatePdfTemplateRepository;
         this.estimatePdfTemplateValidationService = estimatePdfTemplateValidationService;
         this.protectedBlockRenderService = protectedBlockRenderService;
+        this.printableRowPartitionService = printableRowPartitionService;
     }
 
     @Transactional(readOnly = true)
@@ -71,18 +86,31 @@ public class EstimatePdfTemplateRenderService {
                 request.getCssTemplate());
     }
 
-    private String renderTemplate(UUID bidRevisionId, String htmlTemplate, String cssTemplate) {
+    private String renderTemplate(
+            UUID bidRevisionId,
+            String htmlTemplate,
+            String cssTemplate) {
+
         EstimatePdfModel model = estimatePdfModelBuilder.build(bidRevisionId);
 
-        String htmlWithProtectedBlocks = protectedBlockRenderService.applyProtectedBlocks(htmlTemplate);
-        String finalTemplate = injectCss(htmlWithProtectedBlocks, cssTemplate);
+        EstimatePdfPrintableRowPartition printableRowPartition =
+                printableRowPartitionService.partition(model);
+
+        String htmlWithProtectedBlocks =
+                protectedBlockRenderService.applyProtectedBlocks(htmlTemplate);
+
+        String finalTemplate =
+                injectCss(htmlWithProtectedBlocks, cssTemplate);
 
         Template template = Mustache.compiler()
                 .defaultValue("")
                 .compile(finalTemplate);
 
         StringWriter writer = new StringWriter();
-        template.execute(buildMustacheContext(model), writer);
+
+        template.execute(
+                buildMustacheContext(model, printableRowPartition),
+                writer);
 
         return writer.toString();
     }
@@ -110,16 +138,36 @@ public class EstimatePdfTemplateRenderService {
         return styleBlock + htmlTemplate;
     }
 
-    private Map<String, Object> buildMustacheContext(EstimatePdfModel model) {
+    private Map<String, Object> buildMustacheContext(
+            EstimatePdfModel model,
+            EstimatePdfPrintableRowPartition printableRowPartition) {
+
         Map<String, Object> context = new HashMap<>();
 
         context.put("model", model);
         context.put("money", moneyLambda());
         context.put("label", labelLambda());
+        context.put("dateOnly", dateOnlyLambda());
+        context.put("formatQuantity", quantityLambda());
         context.put("hasCompany", hasCompany(model));
         context.put("hasTaxRate", hasTaxRate(model));
         context.put("hasJobAddress", hasJobAddress(model));
-        context.put("formatQuantity", quantityLambda());
+
+        context.put(
+                "mainPrintableRows",
+                printableRowPartition.getMainRows());
+
+        context.put(
+                "finalCarryPrintableRows",
+                printableRowPartition.getFinalCarryRows());
+
+        context.put(
+                "hasFinalCarryPrintableRows",
+                !printableRowPartition.getFinalCarryRows().isEmpty());
+
+        context.put(
+                "hasMainPrintableRows",
+                !printableRowPartition.getMainRows().isEmpty());
 
         return context;
     }
@@ -148,11 +196,90 @@ public class EstimatePdfTemplateRenderService {
         };
     }
 
+    private Mustache.Lambda dateOnlyLambda() {
+        return (Template.Fragment fragment, java.io.Writer writer) -> {
+            String rawValue = fragment.execute();
+
+            if (rawValue == null || rawValue.isBlank()) {
+                return;
+            }
+
+            writer.write(formatDateOnly(rawValue.trim()));
+        };
+    }
+
+    private Mustache.Lambda quantityLambda() {
+        return (Template.Fragment fragment, java.io.Writer writer) -> {
+            String rawValue = fragment.execute();
+
+            if (rawValue == null || rawValue.isBlank()) {
+                return;
+            }
+
+            writer.write(formatQuantity(rawValue.trim()));
+        };
+    }
+
     private String formatMoney(String rawValue) {
         try {
             BigDecimal value = new BigDecimal(rawValue);
             return "$" + value.setScale(2, RoundingMode.HALF_UP);
         } catch (NumberFormatException ex) {
+            return rawValue;
+        }
+    }
+
+    private String formatDateOnly(String rawValue) {
+        LocalDate date = parseDate(rawValue);
+
+        if (date == null) {
+            return rawValue;
+        }
+
+        return DATE_ONLY_FORMATTER.format(date);
+    }
+
+    private LocalDate parseDate(String rawValue) {
+        try {
+            return OffsetDateTime.parse(rawValue).toLocalDate();
+        } catch (DateTimeParseException ignored) {
+            // Try the next supported representation.
+        }
+
+        try {
+            return ZonedDateTime.parse(rawValue).toLocalDate();
+        } catch (DateTimeParseException ignored) {
+            // Try the next supported representation.
+        }
+
+        try {
+            return LocalDateTime.parse(rawValue).toLocalDate();
+        } catch (DateTimeParseException ignored) {
+            // Try the next supported representation.
+        }
+
+        try {
+            return LocalDate.parse(rawValue);
+        } catch (DateTimeParseException ignored) {
+            // Try an ISO date prefix below.
+        }
+
+        if (rawValue.length() >= 10) {
+            try {
+                return LocalDate.parse(rawValue.substring(0, 10));
+            } catch (DateTimeParseException ignored) {
+                // Return null when the value is not a supported date.
+            }
+        }
+
+        return null;
+    }
+
+    private String formatQuantity(String rawValue) {
+        try {
+            BigDecimal value = new BigDecimal(rawValue);
+            return value.stripTrailingZeros().toPlainString();
+        } catch (NumberFormatException exception) {
             return rawValue;
         }
     }
@@ -208,37 +335,21 @@ public class EstimatePdfTemplateRenderService {
     }
 
     private String loadClasspathDefaultTemplate() {
-        ClassPathResource resource = new ClassPathResource(DEFAULT_CLASSPATH_TEMPLATE_PATH);
+        ClassPathResource resource =
+                new ClassPathResource(DEFAULT_CLASSPATH_TEMPLATE_PATH);
 
         try {
-            return new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            return new String(
+                    resource.getInputStream().readAllBytes(),
+                    StandardCharsets.UTF_8);
         } catch (IOException ex) {
-            throw new IllegalStateException("Failed to load estimate PDF HTML template", ex);
+            throw new IllegalStateException(
+                    "Failed to load estimate PDF HTML template",
+                    ex);
         }
     }
 
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
-    }
-
-    private Mustache.Lambda quantityLambda() {
-        return (Template.Fragment fragment, java.io.Writer writer) -> {
-            String rawValue = fragment.execute();
-
-            if (rawValue == null || rawValue.isBlank()) {
-                return;
-            }
-
-            writer.write(formatQuantity(rawValue.trim()));
-        };
-    }
-
-    private String formatQuantity(String rawValue) {
-        try {
-            BigDecimal value = new BigDecimal(rawValue);
-            return value.stripTrailingZeros().toPlainString();
-        } catch (NumberFormatException exception) {
-            return rawValue;
-        }
     }
 }

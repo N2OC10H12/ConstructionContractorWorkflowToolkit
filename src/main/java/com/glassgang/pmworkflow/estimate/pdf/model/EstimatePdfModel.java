@@ -1,8 +1,7 @@
 package com.glassgang.pmworkflow.estimate.pdf.model;
 
-import com.glassgang.pmworkflow.estimate.enums.EstimatePriceDisplayMode;
 import com.glassgang.pmworkflow.estimate.enums.CustomerDisplayMode;
-
+import com.glassgang.pmworkflow.estimate.enums.EstimatePriceDisplayMode;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -28,7 +27,7 @@ public class EstimatePdfModel {
 
     private CustomerDisplayMode customerDisplayMode;
     private EstimatePriceDisplayMode priceDisplayMode;
-    
+
     private Boolean showHierarchyPriceColumn;
     private Boolean showTitleTotalPrice;
 
@@ -37,5 +36,21 @@ public class EstimatePdfModel {
     private EstimatePdfJobBlock job;
     private EstimatePdfTotals totals;
 
+    /*
+     * Existing hierarchical representation retained during migration.
+     */
     private List<EstimatePdfGroup> groups = new ArrayList<>();
+
+    /*
+     * Flattened customer-visible hierarchy in final rendering order.
+     *
+     * This list is populated only after CustomerDisplayMode visibility
+     * rules have been applied.
+     *
+     * It will later be split into:
+     * - normal table rows
+     * - final carry rows
+     * - continuation/context rows
+     */
+    private List<EstimatePdfPrintableRow> printableRows = new ArrayList<>();
 }
