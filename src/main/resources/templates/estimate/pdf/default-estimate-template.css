@@ -6,7 +6,7 @@
 
 @page scope {
   size: Letter;
-  margin: 52px 0px 52px 36px;
+  margin: 52px 36px 52px 36px;
 
   @top-center {
     content: element(scopeHeader);
@@ -47,8 +47,8 @@ body {
 /*
  * Browser/designer layout.
  *
- * PDF rendering overrides these scope-page dimensions and padding
- * inside the print rules below.
+ * PDF rendering overrides the fixed scope-page dimensions and
+ * padding inside the print rules below.
  */
 .pdf-scope-page {
   position: relative;
@@ -85,8 +85,8 @@ body {
 }
 
 .pdf-company-info h1 {
-  font-size: 24px;
   margin: 0 0 8px 0;
+  font-size: 24px;
 }
 
 .pdf-customer-info {
@@ -103,13 +103,13 @@ body {
 
 .pdf-customer-info h2,
 .pdf-job-info h2 {
-  font-size: 15px;
   margin: 0 0 8px 0;
+  font-size: 15px;
 }
 
 .pdf-customer-name {
-  font-weight: bold;
   font-size: 14px;
+  font-weight: bold;
 }
 
 .pdf-title-bottom-row {
@@ -301,7 +301,6 @@ body {
 }
 
 .pdf-scope-total-summary div {
-  width: 100%;
   margin-top: 5px;
   text-align: right;
 }
@@ -399,12 +398,55 @@ body {
 
 /* PMW OpenHTMLtoPDF pagination */
 @media print {
+  /*
+   * The browser/designer canvas uses the full Letter width.
+   * During PDF rendering, the named page owns the printable width.
+   */
+  html,
+  body {
+    width: auto;
+    min-height: 0;
+  }
+
   .pdf-scope-page {
     page: scope;
     position: static;
-    width: auto;
+    width: 100%;
+    max-width: 100%;
     min-height: 0;
     padding: 0;
+  }
+
+  /*
+   * Prevent the protected content from retaining the browser's
+   * full 8.5-inch canvas width inside the narrower page content box.
+   */
+  [data-pdf-block="ESTIMATE_ITEMS_TABLE"],
+  .pdf-final-carry-block,
+  .pdf-items-table {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /*
+   * Keep totals inside the same printable-width container as the
+   * Items table. Their right edge matches the table's right edge.
+   */
+  .pdf-scope-total-summary {
+    width: 260px;
+    max-width: 100%;
+    margin-top: 24px;
+    margin-right: 0;
+    margin-left: auto;
+    padding-top: 8px;
+    border-top: 2px solid rgb(34, 34, 34);
+    text-align: right;
+    font-size: 13px;
+  }
+
+  .pdf-scope-total-summary div {
+    margin-top: 5px;
+    text-align: right;
   }
 
   /*
@@ -436,7 +478,7 @@ body {
 
   /*
    * OpenHTMLtoPDF table pagination extension.
-   * The table header is repeated when the main table crosses pages.
+   * The table header repeats when the main table crosses pages.
    */
   .pdf-items-main-table {
     -fs-table-paginate: paginate;
@@ -447,8 +489,8 @@ body {
   }
 
   /*
-   * Individual rows may contain wrapped descriptions and notes,
-   * but a row should not split between two physical pages.
+   * Rows may contain wrapped descriptions and notes, but an
+   * individual row should not split across physical pages.
    */
   .pdf-items-table tr {
     page-break-inside: avoid;
@@ -456,9 +498,8 @@ body {
   }
 
   /*
-   * The final carry table and totals are one indivisible block.
-   * OpenHTMLtoPDF decides whether the block fits using its actual
-   * rendered height.
+   * Keep continuation context, final detail rows, and totals
+   * together as one final pagination block.
    */
   .pdf-final-carry-block {
     page-break-inside: avoid;
