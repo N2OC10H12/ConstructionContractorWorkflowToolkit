@@ -4,6 +4,19 @@
   margin: 0;
 }
 
+@page scope {
+  size: Letter;
+  margin: 52px 0px 52px 36px;
+
+  @top-center {
+    content: element(scopeHeader);
+  }
+
+  @bottom-center {
+    content: element(scopeFooter);
+  }
+}
+
 * {
   box-sizing: border-box;
 }
@@ -15,50 +28,47 @@ body {
   min-height: 11in;
 }
 
+body {
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  color: rgb(34, 34, 34);
+}
+
 .pdf-title-page,
 .pdf-scope-page {
   width: 8.5in;
   min-height: 11in;
 }
 
-.pdf-scope-page {
-  position: relative;
-}
-
-[data-pdf-block="ESTIMATE_ITEMS_TABLE"] {
-  width: 100%;
-}
-
-.pdf-items-table {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-}
-
-.pdf-footer {
-  position: absolute;
-  left: 36px;
-  right: 36px;
-  bottom: 36px;
-  margin-top: 0 !important;
-}
-/* /PMW PDF letter/page defaults */
-
-body {
-  font-family: Arial, sans-serif;
-  font-size: 12px;
-  color: rgb(34, 34, 34);
-  margin: 0;
-}
-
 .pdf-title-page {
   padding: 36px;
 }
 
+/*
+ * Browser/designer layout.
+ *
+ * PDF rendering overrides these scope-page dimensions and padding
+ * inside the print rules below.
+ */
 .pdf-scope-page {
+  position: relative;
   padding: 36px 36px 72px 36px;
 }
 
+/*
+ * The protected Items table has one editable inherited font size.
+ *
+ * Future backend/designer validation should restrict this value
+ * to the supported 8px-12px range.
+ */
+[data-pdf-block="ESTIMATE_ITEMS_TABLE"] {
+  width: 100%;
+  font-size: 10px;
+}
+/* /PMW PDF letter/page defaults */
+
+
+/* Title page */
 .pdf-logo-section {
   min-height: 70px;
   margin-bottom: 20px;
@@ -103,9 +113,9 @@ body {
 }
 
 .pdf-title-bottom-row {
-  margin-top: 90px;
   display: table;
   width: 100%;
+  margin-top: 90px;
 }
 
 .pdf-signature-block {
@@ -123,20 +133,20 @@ body {
 
 .pdf-signature-line {
   width: 220px;
-  border-bottom: 1px solid rgb(34, 34, 34);
   margin-top: 34px;
+  border-bottom: 1px solid rgb(34, 34, 34);
 }
 
 .pdf-date-line {
   width: 220px;
-  border-bottom: 1px solid rgb(34, 34, 34);
   margin-top: 34px;
+  border-bottom: 1px solid rgb(34, 34, 34);
 }
 
 .pdf-signature-label {
+  margin-top: 4px;
   font-size: 10px;
   color: rgb(85, 85, 85);
-  margin-top: 4px;
 }
 
 .pdf-total-label {
@@ -146,9 +156,9 @@ body {
 }
 
 .pdf-total-value {
+  margin-top: 6px;
   font-size: 34px;
   font-weight: bold;
-  margin-top: 6px;
 }
 
 .pdf-page-break {
@@ -156,13 +166,15 @@ body {
   break-before: page;
 }
 
+
+/* Scope-page header */
 .pdf-scope-header {
   display: table;
   width: 100%;
   margin-bottom: 20px;
   padding-bottom: 8px;
   border-bottom: 1px solid rgb(221, 221, 221);
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .pdf-scope-header > div {
@@ -178,17 +190,64 @@ body {
   text-align: right;
 }
 
-.pdf-items-table th {
-  text-align: left;
-  border-bottom: 2px solid rgb(34, 34, 34);
-  padding: 7px 6px;
-  font-size: 11px;
+
+/* Protected Items table */
+.pdf-items-table {
+  width: 100%;
+  margin-top: 12px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: inherit;
 }
 
+.pdf-items-description-col {
+  width: 60%;
+}
+
+.pdf-items-qty-col {
+  width: 9%;
+}
+
+.pdf-items-unit-col {
+  width: 9%;
+}
+
+.pdf-items-price-col {
+  width: 22%;
+}
+
+.pdf-items-table th,
 .pdf-items-table td {
-  border-bottom: 1px solid rgb(221, 221, 221);
+  font-size: inherit;
+}
+
+.pdf-items-header-row th {
   padding: 7px 6px;
+  border-bottom: 2px solid rgb(34, 34, 34);
+  text-align: left;
+  font-weight: bold;
+}
+
+.pdf-items-description-cell,
+.pdf-items-qty-cell,
+.pdf-items-unit-cell,
+.pdf-items-price-cell {
+  padding: 7px 6px;
+  border-bottom: 1px solid rgb(221, 221, 221);
   vertical-align: top;
+}
+
+.pdf-items-qty-cell,
+.pdf-items-unit-cell,
+.pdf-items-price-cell {
+  text-align: right;
+}
+
+.pdf-items-description-header-cell,
+.pdf-items-qty-header-cell,
+.pdf-items-unit-header-cell,
+.pdf-items-price-header-cell {
+  font-weight: bold;
 }
 
 .pdf-group-row td {
@@ -202,34 +261,68 @@ body {
 }
 
 .pdf-cost-row td {
-  font-size: 10px;
+  font-size: inherit;
   color: rgb(85, 85, 85);
 }
 
+.pdf-cost-description-cell {
+  padding-left: 18px;
+}
+
+.pdf-item-notes,
+.pdf-cost-notes {
+  margin-top: 3px;
+  font-size: inherit;
+  color: rgb(102, 102, 102);
+}
+
+.pdf-cost-rate {
+  font-size: inherit;
+  color: rgb(119, 119, 119);
+}
+
+.pdf-continuation-context-row td {
+  font-style: italic;
+  color: rgb(102, 102, 102);
+}
+
+
+/* Scope totals */
 .pdf-scope-total-summary {
   width: 260px;
-  margin-left: auto;
+  max-width: 100%;
   margin-top: 24px;
-  border-top: 2px solid rgb(34, 34, 34);
+  margin-right: 0;
+  margin-left: auto;
   padding-top: 8px;
+  border-top: 2px solid rgb(34, 34, 34);
   text-align: right;
   font-size: 13px;
 }
 
 .pdf-scope-total-summary div {
+  width: 100%;
   margin-top: 5px;
+  text-align: right;
 }
 
 .pdf-scope-total-summary div:last-child {
-  font-weight: bold;
   font-size: 16px;
+  font-weight: bold;
 }
 
+
+/*
+ * Browser/designer footer.
+ *
+ * PDF rendering replaces this absolute positioning with a running
+ * page-margin element.
+ */
 .pdf-footer {
   position: absolute;
-  left: 36px;
   right: 36px;
   bottom: 36px;
+  left: 36px;
   margin-top: 0 !important;
   padding-top: 8px;
   border-top: 1px solid rgb(221, 221, 221);
@@ -238,15 +331,17 @@ body {
   color: rgb(119, 119, 119);
 }
 
+
+/* Existing GrapesJS element styles */
 #ikxm {
-  text-align: center;
   margin-bottom: 20px;
+  text-align: center;
 }
 
 #is5qz {
-  text-align: center;
-  margin-bottom: 8px;
   margin-top: 0;
+  margin-bottom: 8px;
+  text-align: center;
 }
 
 #im7ct,
@@ -284,12 +379,12 @@ body {
 }
 
 #i5xid {
-  font-size: 20px;
-  margin-bottom: 0;
   margin-top: 0;
+  margin-bottom: 0;
   font-family: Arial, sans-serif;
-  color: #000000;
+  font-size: 20px;
   line-height: 0.6;
+  color: rgb(0, 0, 0);
 }
 
 #ig718b {
@@ -297,76 +392,77 @@ body {
 }
 
 #i444b {
-  text-align: center;
   font-family: Arial, sans-serif;
+  text-align: center;
 }
 
-/* PMW protected items table editable column widths */
-.pdf-items-table {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-  margin-top: 12px;
-}
 
-.pdf-items-description-col {
-  width: 60%;
-}
+/* PMW OpenHTMLtoPDF pagination */
+@media print {
+  .pdf-scope-page {
+    page: scope;
+    position: static;
+    width: auto;
+    min-height: 0;
+    padding: 0;
+  }
 
-.pdf-items-qty-col {
-  width: 9%;
-}
+  /*
+   * OpenHTMLtoPDF moves these elements into the named page's
+   * top and bottom margin boxes.
+   */
+  .pdf-scope-header {
+    position: running(scopeHeader);
+    width: 100%;
+    margin: 0;
+  }
 
-.pdf-items-unit-col {
-  width: 9%;
-}
+  .pdf-footer {
+    position: running(scopeFooter);
+    right: auto;
+    bottom: auto;
+    left: auto;
+    width: 100%;
+    margin: 0 !important;
+  }
 
-.pdf-items-price-col {
-  width: 22%;
-}
+  /*
+   * The title page is physical page 1, so the first scope page
+   * displays Page 2 of Y.
+   */
+  .pdf-page-number::after {
+    content: counter(page) " of " counter(pages);
+  }
 
-.pdf-items-header-row th {
-  text-align: left;
-  border-bottom: 2px solid #222;
-  padding: 7px 6px;
-  font-size: 11px;
-}
+  /*
+   * OpenHTMLtoPDF table pagination extension.
+   * The table header is repeated when the main table crosses pages.
+   */
+  .pdf-items-main-table {
+    -fs-table-paginate: paginate;
+  }
 
-.pdf-items-description-cell,
-.pdf-items-qty-cell,
-.pdf-items-unit-cell,
-.pdf-items-price-cell {
-  border-bottom: 1px solid #ddd;
-  padding: 7px 6px;
-  vertical-align: top;
-}
+  .pdf-items-table thead {
+    display: table-header-group;
+  }
 
-.pdf-items-qty-cell,
-.pdf-items-unit-cell,
-.pdf-items-price-cell {
-  text-align: right;
-}
+  /*
+   * Individual rows may contain wrapped descriptions and notes,
+   * but a row should not split between two physical pages.
+   */
+  .pdf-items-table tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
 
-.pdf-items-description-header-cell,
-.pdf-items-qty-header-cell,
-.pdf-items-unit-header-cell,
-.pdf-items-price-header-cell {
-  font-weight: bold;
+  /*
+   * The final carry table and totals are one indivisible block.
+   * OpenHTMLtoPDF decides whether the block fits using its actual
+   * rendered height.
+   */
+  .pdf-final-carry-block {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
 }
-
-.pdf-cost-description-cell {
-  padding-left: 18px;
-}
-
-.pdf-item-notes,
-.pdf-cost-notes {
-  font-size: 10px;
-  color: #666;
-  margin-top: 3px;
-}
-
-.pdf-cost-rate {
-  font-size: 10px;
-  color: #777;
-}
-/* /PMW protected items table editable column widths */
+/* /PMW OpenHTMLtoPDF pagination */

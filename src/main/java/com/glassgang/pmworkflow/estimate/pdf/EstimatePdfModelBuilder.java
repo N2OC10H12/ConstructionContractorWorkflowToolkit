@@ -24,6 +24,7 @@ import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfItemTypeGroup;
 import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfJobBlock;
 import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfModel;
 import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfTotals;
+import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfPrintableRow;
 import com.glassgang.pmworkflow.estimate.repository.BidRevisionItemCostRepository;
 import com.glassgang.pmworkflow.estimate.repository.BidRevisionItemRepository;
 import com.glassgang.pmworkflow.estimate.repository.BidRevisionRepository;
@@ -119,6 +120,7 @@ public class EstimatePdfModelBuilder {
         model.getGroups().addAll(buildGroups(items));
         applyCustomerDisplayMode(model);
         applyPriceDisplayMode(model);
+        buildPrintableRows(model);
 
         return model;
     }
@@ -523,6 +525,43 @@ public class EstimatePdfModelBuilder {
         block.setState(profile.legalState());
         block.setPostalCode(profile.legalPostalCode());
         block.setCountry(profile.legalCountry());
+    }
+
+    private void buildPrintableRows(EstimatePdfModel model) {
+        model.getPrintableRows().clear();
+
+        for (EstimatePdfGroup group : model.getGroups()) {
+            model.getPrintableRows().add(
+                    EstimatePdfPrintableRow.forGroup(group));
+
+            for (EstimatePdfItemTypeGroup itemType : group.getItemTypes()) {
+                model.getPrintableRows().add(
+                        EstimatePdfPrintableRow.forItemType(
+                                group,
+                                itemType));
+
+                for (EstimatePdfItemLine item : itemType.getItems()) {
+                    model.getPrintableRows().add(
+                            EstimatePdfPrintableRow.forItem(
+                                    group,
+                                    itemType,
+                                    item));
+
+                    if (!Boolean.TRUE.equals(item.getShowCostLines())) {
+                        continue;
+                    }
+
+                    for (EstimatePdfItemCostLine cost : item.getCosts()) {
+                        model.getPrintableRows().add(
+                                EstimatePdfPrintableRow.forCost(
+                                        group,
+                                        itemType,
+                                        item,
+                                        cost));
+                    }
+                }
+            }
+        }
     }
 
     private boolean hasAnyAddress(

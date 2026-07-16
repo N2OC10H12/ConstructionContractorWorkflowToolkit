@@ -4,6 +4,7 @@ import com.glassgang.pmworkflow.estimate.dto.pdf.PreviewEstimatePdfTemplateReque
 import com.glassgang.pmworkflow.estimate.entity.EstimatePdfTemplate;
 import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfJobBlock;
 import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfModel;
+import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfPrintableRowPartition;
 import com.glassgang.pmworkflow.estimate.repository.EstimatePdfTemplateRepository;
 import com.samskivert.mustache.Mustache;
 import com.samskivert.mustache.Template;
@@ -30,16 +31,20 @@ public class EstimatePdfTemplateRenderService {
     private final EstimatePdfTemplateRepository estimatePdfTemplateRepository;
     private final EstimatePdfTemplateValidationService estimatePdfTemplateValidationService;
     private final EstimatePdfProtectedBlockRenderService protectedBlockRenderService;
+    private final EstimatePdfPrintableRowPartitionService printableRowPartitionService;
 
     public EstimatePdfTemplateRenderService(
             EstimatePdfModelBuilder estimatePdfModelBuilder,
             EstimatePdfTemplateRepository estimatePdfTemplateRepository,
             EstimatePdfTemplateValidationService estimatePdfTemplateValidationService,
-            EstimatePdfProtectedBlockRenderService protectedBlockRenderService) {
+            EstimatePdfProtectedBlockRenderService protectedBlockRenderService,
+            EstimatePdfPrintableRowPartitionService printableRowPartitionService) {
+
         this.estimatePdfModelBuilder = estimatePdfModelBuilder;
         this.estimatePdfTemplateRepository = estimatePdfTemplateRepository;
         this.estimatePdfTemplateValidationService = estimatePdfTemplateValidationService;
         this.protectedBlockRenderService = protectedBlockRenderService;
+        this.printableRowPartitionService = printableRowPartitionService;
     }
 
     @Transactional(readOnly = true)
@@ -74,6 +79,8 @@ public class EstimatePdfTemplateRenderService {
     private String renderTemplate(UUID bidRevisionId, String htmlTemplate, String cssTemplate) {
         EstimatePdfModel model = estimatePdfModelBuilder.build(bidRevisionId);
 
+        EstimatePdfPrintableRowPartition printableRowPartition = printableRowPartitionService.partition(model);
+
         String htmlWithProtectedBlocks = protectedBlockRenderService.applyProtectedBlocks(htmlTemplate);
         String finalTemplate = injectCss(htmlWithProtectedBlocks, cssTemplate);
 
@@ -82,7 +89,9 @@ public class EstimatePdfTemplateRenderService {
                 .compile(finalTemplate);
 
         StringWriter writer = new StringWriter();
-        template.execute(buildMustacheContext(model), writer);
+        template.execute(
+                buildMustacheContext(model, printableRowPartition),
+                writer);
 
         return writer.toString();
     }
@@ -110,7 +119,9 @@ public class EstimatePdfTemplateRenderService {
         return styleBlock + htmlTemplate;
     }
 
-    private Map<String, Object> buildMustacheContext(EstimatePdfModel model) {
+    private Map<String, Object> buildMustacheContext(
+            EstimatePdfModel model,
+            EstimatePdfPrintableRowPartition printableRowPartition) {
         Map<String, Object> context = new HashMap<>();
 
         context.put("model", model);
@@ -120,6 +131,21 @@ public class EstimatePdfTemplateRenderService {
         context.put("hasTaxRate", hasTaxRate(model));
         context.put("hasJobAddress", hasJobAddress(model));
         context.put("formatQuantity", quantityLambda());
+        context.put(
+                "mainPrintableRows",
+                printableRowPartition.getMainRows());
+
+        context.put(
+                "finalCarryPrintableRows",
+                printableRowPartition.getFinalCarryRows());
+
+        context.put(
+                "hasFinalCarryPrintableRows",
+                !printableRowPartition.getFinalCarryRows().isEmpty());
+
+        context.put(
+                "hasMainPrintableRows",
+                !printableRowPartition.getMainRows().isEmpty());
 
         return context;
     }
