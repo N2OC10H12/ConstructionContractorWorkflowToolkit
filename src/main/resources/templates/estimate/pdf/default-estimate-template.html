@@ -75,7 +75,7 @@
     <header class="pdf-scope-header">
         <div>{{model.job.jobName}}</div>
         <div>Revision: {{model.revisionDisplayName}}</div>
-        <div>{{model.revisionUpdatedAtUtc}}</div>
+        <div>{{#dateOnly}}{{model.revisionUpdatedAtUtc}}{{/dateOnly}}</div>
     </header>
 
     <footer class="pdf-footer">

@@ -6,7 +6,7 @@
 
 @page scope {
   size: Letter;
-  margin: 52px 36px 52px 36px;
+  margin: 52px 0;
 
   @top-center {
     content: element(scopeHeader);
@@ -89,12 +89,7 @@ body {
   font-size: 24px;
 }
 
-.pdf-customer-info {
-  margin-top: 24px;
-  padding-top: 14px;
-  border-top: 1px solid rgb(221, 221, 221);
-}
-
+.pdf-customer-info,
 .pdf-job-info {
   margin-top: 24px;
   padding-top: 14px;
@@ -131,12 +126,7 @@ body {
   vertical-align: bottom;
 }
 
-.pdf-signature-line {
-  width: 220px;
-  margin-top: 34px;
-  border-bottom: 1px solid rgb(34, 34, 34);
-}
-
+.pdf-signature-line,
 .pdf-date-line {
   width: 220px;
   margin-top: 34px;
@@ -399,27 +389,20 @@ body {
 /* PMW OpenHTMLtoPDF pagination */
 @media print {
   /*
-   * The browser/designer canvas uses the full Letter width.
-   * During PDF rendering, the named page owns the printable width.
+   * The named page owns the vertical margin boxes.
+   * The scope container owns the 36px left and right content margins.
    */
-  html,
-  body {
-    width: auto;
-    min-height: 0;
-  }
-
   .pdf-scope-page {
     page: scope;
     position: static;
-    width: 100%;
-    max-width: 100%;
+    width: 8.5in;
     min-height: 0;
-    padding: 0;
+    padding: 0 36px;
   }
 
   /*
-   * Prevent the protected content from retaining the browser's
-   * full 8.5-inch canvas width inside the narrower page content box.
+   * Keep all protected Items content inside the scope page's
+   * 7.75-inch content area.
    */
   [data-pdf-block="ESTIMATE_ITEMS_TABLE"],
   .pdf-final-carry-block,
@@ -429,34 +412,14 @@ body {
   }
 
   /*
-   * Keep totals inside the same printable-width container as the
-   * Items table. Their right edge matches the table's right edge.
-   */
-  .pdf-scope-total-summary {
-    width: 260px;
-    max-width: 100%;
-    margin-top: 24px;
-    margin-right: 0;
-    margin-left: auto;
-    padding-top: 8px;
-    border-top: 2px solid rgb(34, 34, 34);
-    text-align: right;
-    font-size: 13px;
-  }
-
-  .pdf-scope-total-summary div {
-    margin-top: 5px;
-    text-align: right;
-  }
-
-  /*
    * OpenHTMLtoPDF moves these elements into the named page's
-   * top and bottom margin boxes.
+   * top and bottom margin boxes. Their borders align with the
+   * Items table's 36px horizontal boundaries.
    */
   .pdf-scope-header {
     position: running(scopeHeader);
-    width: 100%;
-    margin: 0;
+    width: 7.75in;
+    margin: 0 auto;
   }
 
   .pdf-footer {
@@ -464,8 +427,8 @@ body {
     right: auto;
     bottom: auto;
     left: auto;
-    width: 100%;
-    margin: 0 !important;
+    width: 7.75in;
+    margin: 0 auto !important;
   }
 
   /*
