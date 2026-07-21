@@ -37,6 +37,4 @@ public class Project {
 
     @OneToMany(mappedBy = "project", fetch = FetchType.LAZY)
     private java.util.List<ProjectStep> steps;
-
-    // getters/setters
 }

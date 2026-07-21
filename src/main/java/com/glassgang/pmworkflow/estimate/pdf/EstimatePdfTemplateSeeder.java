@@ -17,16 +17,13 @@ import java.util.UUID;
 @Component
 public class EstimatePdfTemplateSeeder implements ApplicationRunner {
 
-    @NonNull
+    
     private static final String DEFAULT_TEMPLATE_CODE = "DEFAULT_ESTIMATE_TEMPLATE";
 
-    @NonNull
     private static final String DEFAULT_HTML_TEMPLATE_PATH = "templates/estimate/pdf/default-estimate-template.html";
 
-    @NonNull
     private static final String DEFAULT_CSS_TEMPLATE_PATH = "templates/estimate/pdf/default-estimate-template.css";
 
-    @NonNull
     private static final String DEFAULT_TEMPLATE_DEFINITION_PATH = "templates/estimate/pdf/default-estimate-template-definition.json";
 
     private final EstimatePdfTemplateRepository estimatePdfTemplateRepository;

@@ -29,7 +29,6 @@ public class EstimatePdfItemCostLine {
     private BigDecimal taxAmount;
     private BigDecimal priceWithTax;
 
-    private Boolean showCustomer;
     private Boolean isOptional;
 
     private Boolean showPrice;

@@ -23,8 +23,8 @@ import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfItemLine;
 import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfItemTypeGroup;
 import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfJobBlock;
 import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfModel;
-import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfTotals;
 import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfPrintableRow;
+import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfTotals;
 import com.glassgang.pmworkflow.estimate.repository.BidRevisionItemCostRepository;
 import com.glassgang.pmworkflow.estimate.repository.BidRevisionItemRepository;
 import com.glassgang.pmworkflow.estimate.repository.BidRevisionRepository;
@@ -337,8 +337,6 @@ public class EstimatePdfModelBuilder {
         line.setPriceWithTax(item.getPriceWithTax());
 
         line.setIsOptional(item.getIsOptional());
-        line.setShowCustomerRow(item.getShowCustomerRow());
-        line.setShowCustomerPrice(item.getShowCustomerPrice());
 
         line.setCustomerNote(item.getCustomerNote());
 
@@ -382,7 +380,6 @@ public class EstimatePdfModelBuilder {
         line.setTaxAmount(cost.getTaxAmount());
         line.setPriceWithTax(cost.getPriceWithTax());
 
-        line.setShowCustomer(cost.getShowCustomer());
         line.setIsOptional(cost.getIsOptional());
 
         line.setCustomerNote(cost.getCustomerNote());
@@ -527,6 +524,25 @@ public class EstimatePdfModelBuilder {
         block.setCountry(profile.legalCountry());
     }
 
+    private boolean hasAnyAddress(
+            String line1,
+            String line2,
+            String city,
+            String state,
+            String postalCode,
+            String country) {
+        return hasText(line1)
+                || hasText(line2)
+                || hasText(city)
+                || hasText(state)
+                || hasText(postalCode)
+                || hasText(country);
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
     private void buildPrintableRows(EstimatePdfModel model) {
         model.getPrintableRows().clear();
 
@@ -562,24 +578,5 @@ public class EstimatePdfModelBuilder {
                 }
             }
         }
-    }
-
-    private boolean hasAnyAddress(
-            String line1,
-            String line2,
-            String city,
-            String state,
-            String postalCode,
-            String country) {
-        return hasText(line1)
-                || hasText(line2)
-                || hasText(city)
-                || hasText(state)
-                || hasText(postalCode)
-                || hasText(country);
-    }
-
-    private boolean hasText(String value) {
-        return value != null && !value.isBlank();
     }
 }
