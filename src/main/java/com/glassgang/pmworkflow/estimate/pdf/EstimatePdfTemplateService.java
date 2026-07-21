@@ -25,19 +25,19 @@ public class EstimatePdfTemplateService {
     private final CurrentUserUtil currentUserUtil;
     private final EstimatePdfTemplateVersionRepository estimatePdfTemplateVersionRepository;
     private final EstimatePdfTemplateValidationService estimatePdfTemplateValidationService;
-    
-public EstimatePdfTemplateService(
-        EstimatePdfTemplateRepository estimatePdfTemplateRepository,
-        EstimatePdfTemplateVersionRepository estimatePdfTemplateVersionRepository,
-        EstimatePdfTemplateAccessService estimatePdfTemplateAccessService,
-        EstimatePdfTemplateValidationService estimatePdfTemplateValidationService,
-        CurrentUserUtil currentUserUtil) {
-    this.estimatePdfTemplateRepository = estimatePdfTemplateRepository;
-    this.estimatePdfTemplateVersionRepository = estimatePdfTemplateVersionRepository;
-    this.estimatePdfTemplateAccessService = estimatePdfTemplateAccessService;
-    this.estimatePdfTemplateValidationService = estimatePdfTemplateValidationService;
-    this.currentUserUtil = currentUserUtil;
-}
+
+    public EstimatePdfTemplateService(
+            EstimatePdfTemplateRepository estimatePdfTemplateRepository,
+            EstimatePdfTemplateVersionRepository estimatePdfTemplateVersionRepository,
+            EstimatePdfTemplateAccessService estimatePdfTemplateAccessService,
+            EstimatePdfTemplateValidationService estimatePdfTemplateValidationService,
+            CurrentUserUtil currentUserUtil) {
+        this.estimatePdfTemplateRepository = estimatePdfTemplateRepository;
+        this.estimatePdfTemplateVersionRepository = estimatePdfTemplateVersionRepository;
+        this.estimatePdfTemplateAccessService = estimatePdfTemplateAccessService;
+        this.estimatePdfTemplateValidationService = estimatePdfTemplateValidationService;
+        this.currentUserUtil = currentUserUtil;
+    }
 
     @Transactional(readOnly = true)
     public EstimatePdfTemplateResponse getDefaultTemplate() {
@@ -65,9 +65,7 @@ public EstimatePdfTemplateService(
         template.setTemplateDefinitionJson(request.getTemplateDefinitionJson());
         template.setVersionNumber(nextVersionNumber);
 
-        if (request.getIsActive() != null) {
-            template.setIsActive(request.getIsActive());
-        }
+        template.setIsActive(request.getIsActive());
 
         template.setUpdatedAtUtc(LocalDateTime.now());
         template.setUpdatedByUserId(currentUserUtil.getCurrentUserId());

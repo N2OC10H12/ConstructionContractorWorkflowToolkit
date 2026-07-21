@@ -516,6 +516,29 @@ public class BidService {
     }
 
     @Transactional(readOnly = true)
+    public void requireBidRevisionPdfPreviewAccess(UUID bidRevisionId) {
+        BidRevision revision = bidRevisionRepository
+                .findByBidRevisionIdAndIsDeletedFalse(bidRevisionId)
+                .orElseThrow(() -> new NotFoundException("Bid revision not found"));
+
+        estimateAccessService.requireBidViewAccess(revision.getBid());
+    }
+
+    @Transactional(readOnly = true)
+    public void requireBidRevisionPdfDownloadAccess(UUID bidRevisionId) {
+        BidRevision revision = bidRevisionRepository
+                .findByBidRevisionIdAndIsDeletedFalse(bidRevisionId)
+                .orElseThrow(() -> new NotFoundException("Bid revision not found"));
+
+        estimateAccessService.requireBidViewAccess(revision.getBid());
+
+        if (revision.getRevisionStatus() == RevisionStatus.DRAFT) {
+            throw new BusinessRuleException(
+                    "DRAFT revision PDF cannot be downloaded. Use PDF preview instead.");
+        }
+    }
+
+    @Transactional(readOnly = true)
     public List<BidRevisionResponse> getBidRevisions(UUID bidId) {
 
         Bid bid = bidRepository.findByBidIdAndIsDeletedFalse(bidId)
