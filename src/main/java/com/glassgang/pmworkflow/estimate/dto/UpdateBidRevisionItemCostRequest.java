@@ -33,6 +33,8 @@ public class UpdateBidRevisionItemCostRequest {
 
     private Boolean showCustomer;
 
+    private Boolean isTaxable;
+
     private Boolean isOptional;
 
     @Size(max = 4000, message = "internalNote must be <= 4000 characters")

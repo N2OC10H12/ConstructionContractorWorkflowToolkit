@@ -1166,7 +1166,8 @@ public class BidService {
 
         BidRevisionItem item = bidRevisionItemRepository
                 .findByBidRevisionItemIdAndIsDeletedFalse(bidRevisionItemId)
-                .orElseThrow(() -> new NotFoundException("Bid revision item not found"));
+                .orElseThrow(() -> new NotFoundException(
+                        "Bid revision item not found"));
 
         BidRevision revision = item.getBidRevision();
         Bid bid = revision.getBid();
@@ -1175,6 +1176,8 @@ public class BidService {
 
         ensureBidCanBeChanged(bid);
         ensureCurrentRevisionCanBeChanged(bid, revision);
+
+        boolean taxRateUpdated = false;
 
         if (request.getGroupName() != null) {
             item.setGroupName(request.getGroupName());
@@ -1206,12 +1209,15 @@ public class BidService {
 
         if (request.getItemTypeId() != null) {
             ItemType itemType = getActiveItemType(request.getItemTypeId());
+
             item.setItemType(itemType);
         }
 
         if (request.getTaxRateId() != null) {
             TaxRate taxRate = getActiveTaxRate(request.getTaxRateId());
+
             applyTaxRateSnapshot(item, taxRate);
+            taxRateUpdated = true;
         }
 
         if (request.getUnitCost() != null) {
@@ -1222,12 +1228,30 @@ public class BidService {
             item.setMarkupPercent(request.getMarkupPercent());
         }
 
+        LocalDateTime now = LocalDateTime.now();
+        UUID currentUserId = currentUserUtil.getCurrentUserId();
+
+        if (taxRateUpdated) {
+            List<BidRevisionItemCost> activeCosts = bidRevisionItemCostRepository
+                    .findByBidRevisionItem_BidRevisionItemIdAndIsDeletedFalseOrderByDisplayOrderAsc(
+                            item.getBidRevisionItemId());
+
+            PricingService.EstimateTaxCalculationContext taxContext = pricingService.createTaxCalculationContext(item);
+
+            for (BidRevisionItemCost cost : activeCosts) {
+                pricingService.recalculateItemCostTotals(
+                        cost,
+                        taxContext);
+
+                cost.setUpdatedAtUtc(now);
+                cost.setUpdatedByUserId(currentUserId);
+            }
+
+            bidRevisionItemCostRepository.saveAll(activeCosts);
+        }
+
         pricingService.recalculateItemMaterialTotals(item);
         pricingService.recalculateItemTotals(item);
-
-        LocalDateTime now = LocalDateTime.now();
-
-        UUID currentUserId = currentUserUtil.getCurrentUserId();
 
         item.setUpdatedAtUtc(now);
         item.setUpdatedByUserId(currentUserId);
@@ -1322,9 +1346,11 @@ public class BidService {
             cost.setUnitPrice(request.getUnitPrice());
         }
 
-        pricingService.recalculateItemCostTotals(cost);
-
         cost.setIsTaxable(true);
+
+        PricingService.EstimateTaxCalculationContext taxContext = pricingService.createTaxCalculationContext(item);
+
+        pricingService.recalculateItemCostTotals(cost, taxContext);
 
         cost.setShowCustomer(request.getShowCustomer());
         cost.setIsOptional(request.getIsOptional());
@@ -1462,8 +1488,16 @@ public class BidService {
             cost.setCustomerNote(request.getCustomerNote());
         }
 
-        ensureCostRateBelongsToCostElement(cost.getCostElement(), cost.getCostRate());
-        cost.setUnitOfMeasure(cost.getCostRate().getRateUnit().name());
+        if (request.getIsTaxable() != null) {
+            cost.setIsTaxable(request.getIsTaxable());
+        }
+
+        ensureCostRateBelongsToCostElement(
+                cost.getCostElement(),
+                cost.getCostRate());
+
+        cost.setUnitOfMeasure(
+                cost.getCostRate().getRateUnit().name());
 
         pricingService.recalculateItemCostTotals(cost);
 
