@@ -222,6 +222,10 @@ public class BidMapper {
                 response.setMarkupPercent(cost.getMarkupPercent());
                 response.setGpmPercent(cost.getGpmPercent());
 
+                response.setIsTaxable(cost.getIsTaxable());
+                response.setTaxAmount(cost.getTaxAmount());
+                response.setPriceWithTax(cost.getPriceWithTax());
+
                 response.setShowCustomer(cost.getShowCustomer());
                 response.setIsOptional(cost.getIsOptional());
                 response.setInternalNote(cost.getInternalNote());

@@ -32,7 +32,9 @@ public class UpdateBidRevisionItemRequest {
     private String customerNote;
 
     private Boolean isOptional;
-
+    
+    private Boolean isTaxable;
+    
     private UUID itemTypeId;
 
     private UUID taxRateId;
