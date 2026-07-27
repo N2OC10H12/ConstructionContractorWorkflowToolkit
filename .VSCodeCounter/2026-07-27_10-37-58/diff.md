@@ -1,8 +1,8 @@
 # Diff Summary
 
-Date : 2026-05-27 13:38:29
+Date : 2026-07-27 10:37:58
 
-Directory c:\\Users\\vlad\\IdeaProjects\\PMWorkflowTool\\src
+Directory c:\\Users\\vlad\\IdeaProjects\\Construction-Contractor-Workflow-Toolkit\\src
 
 Total : 0 files,  0 codes, 0 comments, 0 blanks, all 0 lines
 
