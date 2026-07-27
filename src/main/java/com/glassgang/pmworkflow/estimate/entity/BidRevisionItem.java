@@ -108,8 +108,14 @@ public class BidRevisionItem {
     private UUID deletedByUserId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "item_type_id")
-    private ItemType itemType;
+    @JoinColumn(name = "company_work_type_id")
+    private CompanyWorkType companyWorkType;
+
+    @Column(name = "company_work_type_snapshot_code", length = 30)
+    private String companyWorkTypeSnapshotCode;
+
+    @Column(name = "company_work_type_snapshot_name", length = 200)
+    private String companyWorkTypeSnapshotName;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tax_rate_id")

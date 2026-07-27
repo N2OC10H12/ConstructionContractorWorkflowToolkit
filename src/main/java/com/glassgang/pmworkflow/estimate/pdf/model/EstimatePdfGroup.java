@@ -18,5 +18,5 @@ public class EstimatePdfGroup {
     private BigDecimal totalPrice;
     private Boolean showPrice;
 
-    private List<EstimatePdfItemTypeGroup> itemTypes = new ArrayList<>();
+    private List<EstimatePdfWorkTypeGroup> workTypes = new ArrayList<>();
 }

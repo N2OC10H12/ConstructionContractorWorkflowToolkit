@@ -157,10 +157,24 @@ public class BidMapper {
                 response.setCreatedAtUtc(item.getCreatedAtUtc());
                 response.setUpdatedAtUtc(item.getUpdatedAtUtc());
 
-                if (item.getItemType() != null) {
-                        response.setItemTypeId(item.getItemType().getItemTypeId());
-                        response.setItemTypeCode(item.getItemType().getCode());
-                        response.setItemTypeName(item.getItemType().getName());
+                if (item.getCompanyWorkType() != null) {
+                        response.setCompanyWorkTypeId(
+                                        item.getCompanyWorkType().getCompanyWorkTypeId());
+                }
+
+                response.setCompanyWorkTypeCode(
+                                item.getCompanyWorkTypeSnapshotCode());
+
+                response.setCompanyWorkTypeName(
+                                item.getCompanyWorkTypeSnapshotName());
+
+                if (item.getCompanyWorkTypeSnapshotCode() != null
+                                && item.getCompanyWorkTypeSnapshotName() != null) {
+
+                        response.setCompanyWorkTypeDisplayLabel(
+                                        item.getCompanyWorkTypeSnapshotCode()
+                                                        + " — "
+                                                        + item.getCompanyWorkTypeSnapshotName());
                 }
 
                 if (item.getTaxRate() != null) {

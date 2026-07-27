@@ -30,22 +30,22 @@ public class EstimatePdfProtectedBlockRenderService {
                 </tr>
             {{/groupRow}}
 
-            {{#itemTypeRow}}
+            {{#workTypeRow}}
                 <tr class="pdf-item-type-row{{#continuationContext}} pdf-continuation-context-row{{/continuationContext}}">
                     <td class="pdf-items-description-cell" colspan="3">
-                        {{itemType.itemTypeName}}{{#continuationContext}} — continued{{/continuationContext}}
+                        {{workType.workTypeName}}{{#continuationContext}} — continued{{/continuationContext}}
                     </td>
                     {{#model.showHierarchyPriceColumn}}
                         <td class="pdf-items-price-cell">
                             {{^continuationContext}}
-                                {{#itemType.showPrice}}
-                                    {{#money}}{{itemType.totalPrice}}{{/money}}
-                                {{/itemType.showPrice}}
+                                {{#workType.showPrice}}
+                                    {{#money}}{{workType.totalPrice}}{{/money}}
+                                {{/workType.showPrice}}
                             {{/continuationContext}}
                         </td>
                     {{/model.showHierarchyPriceColumn}}
                 </tr>
-            {{/itemTypeRow}}
+            {{/workTypeRow}}
 
             {{#itemRow}}
                 <tr class="pdf-item-row{{#continuationContext}} pdf-continuation-context-row{{/continuationContext}}">

@@ -61,11 +61,13 @@ public class BidRevisionItemResponse {
 
     private LocalDateTime updatedAtUtc;
 
-    private UUID itemTypeId;
+    private UUID companyWorkTypeId;
 
-    private String itemTypeCode;
+    private String companyWorkTypeCode;
 
-    private String itemTypeName;
+    private String companyWorkTypeName;
+
+    private String companyWorkTypeDisplayLabel;
 
     private UUID taxRateId;
 

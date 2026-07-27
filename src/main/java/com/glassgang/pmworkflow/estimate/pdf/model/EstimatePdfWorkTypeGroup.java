@@ -10,11 +10,11 @@ import java.util.UUID;
 
 @Getter
 @Setter
-public class EstimatePdfItemTypeGroup {
+public class EstimatePdfWorkTypeGroup {
 
-    private UUID itemTypeId;
-    private String itemTypeCode;
-    private String itemTypeName;
+    private UUID workTypeId;
+    private String workTypeCode;
+    private String workTypeName;
 
     private BigDecimal subtotalPrice;
     private BigDecimal taxAmount;

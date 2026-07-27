@@ -33,8 +33,8 @@ public class CreateBidRevisionItemRequest {
     @Size(max = 4000, message = "internalNote must be <= 4000 characters")
     private String internalNote;
 
-    @NotNull(message = "itemTypeId is required")
-    private UUID itemTypeId;
+    @NotNull(message = "companyWorkTypeId is required")
+    private UUID companyWorkTypeId;
 
     @NotNull(message = "taxRateId is required")
     private UUID taxRateId;

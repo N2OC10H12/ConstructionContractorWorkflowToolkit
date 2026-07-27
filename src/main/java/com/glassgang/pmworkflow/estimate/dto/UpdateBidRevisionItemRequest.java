@@ -34,8 +34,8 @@ public class UpdateBidRevisionItemRequest {
     private Boolean isOptional;
     
     private Boolean isTaxable;
-    
-    private UUID itemTypeId;
+
+    private UUID companyWorkTypeId;
 
     private UUID taxRateId;
 

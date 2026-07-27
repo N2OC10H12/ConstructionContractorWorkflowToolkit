@@ -7,7 +7,7 @@ import com.glassgang.pmworkflow.estimate.dto.CreateBidFromRevisionRequest;
 import com.glassgang.pmworkflow.estimate.dto.CreateBidRequest;
 import com.glassgang.pmworkflow.estimate.dto.CreateBidRevisionItemCostRequest;
 import com.glassgang.pmworkflow.estimate.dto.CreateBidRevisionRequest;
-import com.glassgang.pmworkflow.estimate.dto.DeleteRevisionGroupItemTypeRequest;
+import com.glassgang.pmworkflow.estimate.dto.DeleteRevisionGroupCompanyWorkTypeRequest;
 import com.glassgang.pmworkflow.estimate.dto.DeleteRevisionGroupRequest;
 import com.glassgang.pmworkflow.estimate.dto.UpdateBidRequest;
 import com.glassgang.pmworkflow.estimate.dto.UpdateBidRevisionDisplayModesRequest;
@@ -173,11 +173,14 @@ public class BidController {
         bidService.deleteRevisionGroup(bidRevisionId, request);
     }
 
-    @DeleteMapping("/revisions/{bidRevisionId}/items/group-type")
-    public void deleteRevisionGroupItemType(
+    @DeleteMapping("/revisions/{bidRevisionId}/items/group-work-type")
+    public void deleteRevisionGroupCompanyWorkType(
             @PathVariable UUID bidRevisionId,
-            @Valid @RequestBody DeleteRevisionGroupItemTypeRequest request) {
+            @Valid @RequestBody
+            DeleteRevisionGroupCompanyWorkTypeRequest request) {
 
-        bidService.deleteRevisionGroupItemType(bidRevisionId, request);
+        bidService.deleteRevisionGroupCompanyWorkType(
+                bidRevisionId,
+                request);
     }
 }

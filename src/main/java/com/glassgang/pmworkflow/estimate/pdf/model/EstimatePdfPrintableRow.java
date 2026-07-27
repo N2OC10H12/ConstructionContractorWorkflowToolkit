@@ -26,17 +26,17 @@ public class EstimatePdfPrintableRow {
      * GROUP:
      * group
      *
-     * ITEM_TYPE:
-     * group, itemType
+     * WORK_TYPE:
+     * group, workType
      *
      * ITEM:
-     * group, itemType, item
+     * group, workType, item
      *
      * COST:
-     * group, itemType, item, cost
+     * group, workType, item, cost
      */
     private EstimatePdfGroup group;
-    private EstimatePdfItemTypeGroup itemType;
+    private EstimatePdfWorkTypeGroup workType;
     private EstimatePdfItemLine item;
     private EstimatePdfItemCostLine cost;
 
@@ -44,8 +44,8 @@ public class EstimatePdfPrintableRow {
         return rowType == EstimatePdfPrintableRowType.GROUP;
     }
 
-    public boolean isItemTypeRow() {
-        return rowType == EstimatePdfPrintableRowType.ITEM_TYPE;
+    public boolean isWorkTypeRow() {
+        return rowType == EstimatePdfPrintableRowType.WORK_TYPE;
     }
 
     public boolean isItemRow() {
@@ -64,40 +64,40 @@ public class EstimatePdfPrintableRow {
         return row;
     }
 
-    public static EstimatePdfPrintableRow forItemType(
+    public static EstimatePdfPrintableRow forWorkType(
             EstimatePdfGroup group,
-            EstimatePdfItemTypeGroup itemType) {
+            EstimatePdfWorkTypeGroup workType) {
         EstimatePdfPrintableRow row = new EstimatePdfPrintableRow();
-        row.setRowType(EstimatePdfPrintableRowType.ITEM_TYPE);
+        row.setRowType(EstimatePdfPrintableRowType.WORK_TYPE);
         row.setGroup(Objects.requireNonNull(group, "group is required"));
-        row.setItemType(
-                Objects.requireNonNull(itemType, "itemType is required"));
+        row.setWorkType(
+                Objects.requireNonNull(workType, "workType is required"));
         return row;
     }
 
     public static EstimatePdfPrintableRow forItem(
             EstimatePdfGroup group,
-            EstimatePdfItemTypeGroup itemType,
+            EstimatePdfWorkTypeGroup workType,
             EstimatePdfItemLine item) {
         EstimatePdfPrintableRow row = new EstimatePdfPrintableRow();
         row.setRowType(EstimatePdfPrintableRowType.ITEM);
         row.setGroup(Objects.requireNonNull(group, "group is required"));
-        row.setItemType(
-                Objects.requireNonNull(itemType, "itemType is required"));
+        row.setWorkType(
+                Objects.requireNonNull(workType, "workType is required"));
         row.setItem(Objects.requireNonNull(item, "item is required"));
         return row;
     }
 
     public static EstimatePdfPrintableRow forCost(
             EstimatePdfGroup group,
-            EstimatePdfItemTypeGroup itemType,
+            EstimatePdfWorkTypeGroup workType,
             EstimatePdfItemLine item,
             EstimatePdfItemCostLine cost) {
         EstimatePdfPrintableRow row = new EstimatePdfPrintableRow();
         row.setRowType(EstimatePdfPrintableRowType.COST);
         row.setGroup(Objects.requireNonNull(group, "group is required"));
-        row.setItemType(
-                Objects.requireNonNull(itemType, "itemType is required"));
+        row.setWorkType(
+                Objects.requireNonNull(workType, "workType is required"));
         row.setItem(Objects.requireNonNull(item, "item is required"));
         row.setCost(Objects.requireNonNull(cost, "cost is required"));
         return row;
@@ -109,7 +109,7 @@ public class EstimatePdfPrintableRow {
         copy.setRowType(rowType);
         copy.setContinuationContext(true);
         copy.setGroup(group);
-        copy.setItemType(itemType);
+        copy.setWorkType(workType);
         copy.setItem(item);
         copy.setCost(cost);
 
