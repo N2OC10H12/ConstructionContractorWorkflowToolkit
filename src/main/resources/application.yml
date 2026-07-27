@@ -1,6 +1,6 @@
 spring:
   application:
-    name: PMWorkflowTool
+    name: ConstructionContractorWorkflowToolkit
 
   profiles:
     active: local
