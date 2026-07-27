@@ -13,10 +13,10 @@
     </parent>
 
     <groupId>com.glassgang</groupId>
-    <artifactId>pm-workflow-tool</artifactId>
+    <artifactId>construction-contractor-workflow-toolkit</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>PMWorkflowTool</name>
-    <description>PM Workflow Tool backend</description>
+    <name>Construction Contractor Workflow Toolkit</name>
+    <description>Construction contractor workflow toolkit</description>
 
     <properties>
         <java.version>17</java.version>
