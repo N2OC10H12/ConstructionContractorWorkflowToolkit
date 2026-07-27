@@ -14,7 +14,7 @@ import com.glassgang.pmworkflow.estimate.dto.CreateBidRequest;
 import com.glassgang.pmworkflow.estimate.dto.CreateBidRevisionItemCostRequest;
 import com.glassgang.pmworkflow.estimate.dto.CreateBidRevisionItemRequest;
 import com.glassgang.pmworkflow.estimate.dto.CreateBidRevisionRequest;
-import com.glassgang.pmworkflow.estimate.dto.DeleteRevisionGroupItemTypeRequest;
+import com.glassgang.pmworkflow.estimate.dto.DeleteRevisionGroupCompanyWorkTypeRequest;
 import com.glassgang.pmworkflow.estimate.dto.DeleteRevisionGroupRequest;
 import com.glassgang.pmworkflow.estimate.dto.UpdateBidRequest;
 import com.glassgang.pmworkflow.estimate.dto.UpdateBidRevisionDisplayModesRequest;
@@ -27,8 +27,8 @@ import com.glassgang.pmworkflow.estimate.entity.BidRevisionItemCost;
 import com.glassgang.pmworkflow.estimate.entity.ConstructionObjectType;
 import com.glassgang.pmworkflow.estimate.entity.CostElement;
 import com.glassgang.pmworkflow.estimate.entity.CostRate;
-import com.glassgang.pmworkflow.estimate.entity.ItemType;
 import com.glassgang.pmworkflow.estimate.entity.TaxRate;
+import com.glassgang.pmworkflow.estimate.entity.CompanyWorkType;
 import com.glassgang.pmworkflow.estimate.enums.BidStatus;
 import com.glassgang.pmworkflow.estimate.enums.CustomerDisplayMode;
 import com.glassgang.pmworkflow.estimate.enums.EstimatePriceDisplayMode;
@@ -38,7 +38,6 @@ import com.glassgang.pmworkflow.estimate.repository.BidRepository;
 import com.glassgang.pmworkflow.estimate.repository.BidRevisionRepository;
 import com.glassgang.pmworkflow.estimate.repository.ConstructionObjectTypeRepository;
 import com.glassgang.pmworkflow.estimate.repository.BidRevisionItemRepository;
-import com.glassgang.pmworkflow.estimate.repository.ItemTypeRepository;
 import com.glassgang.pmworkflow.estimate.repository.TaxRateRepository;
 import com.glassgang.pmworkflow.estimate.repository.BidRevisionItemCostRepository;
 import com.glassgang.pmworkflow.estimate.repository.CostElementRepository;
@@ -66,13 +65,13 @@ public class BidService {
     private final CustomerProfileRepository customerProfileRepository;
     private final CostElementRepository costElementRepository;
     private final CostRateRepository costRateRepository;
-    private final ItemTypeRepository itemTypeRepository;
     private final TaxRateRepository taxRateRepository;
     private final PricingService pricingService;
     private final CurrentUserUtil currentUserUtil;
     private final EstimateAccessService estimateAccessService;
     private final EstimateAuditService estimateAuditService;
     private final ConstructionObjectTypeRepository constructionObjectTypeRepository;
+    private final CompanyWorkTypeService companyWorkTypeService;
 
     public BidService(
             BidRepository bidRepository,
@@ -85,13 +84,13 @@ public class BidService {
             CustomerProfileRepository customerProfileRepository,
             BidNumberService bidNumberService,
             BidMapper bidMapper,
-            ItemTypeRepository itemTypeRepository,
             TaxRateRepository taxRateRepository,
             PricingService pricingService,
             CurrentUserUtil currentUserUtil,
             EstimateAccessService estimateAccessService,
             EstimateAuditService estimateAuditService,
-            ConstructionObjectTypeRepository constructionObjectTypeRepository) {
+            ConstructionObjectTypeRepository constructionObjectTypeRepository,
+            CompanyWorkTypeService companyWorkTypeService) {
         this.bidRepository = bidRepository;
         this.bidRevisionRepository = bidRevisionRepository;
         this.bidRevisionItemRepository = bidRevisionItemRepository;
@@ -102,13 +101,13 @@ public class BidService {
         this.customerProfileRepository = customerProfileRepository;
         this.bidNumberService = bidNumberService;
         this.bidMapper = bidMapper;
-        this.itemTypeRepository = itemTypeRepository;
         this.taxRateRepository = taxRateRepository;
         this.pricingService = pricingService;
         this.currentUserUtil = currentUserUtil;
         this.estimateAccessService = estimateAccessService;
         this.estimateAuditService = estimateAuditService;
         this.constructionObjectTypeRepository = constructionObjectTypeRepository;
+        this.companyWorkTypeService = companyWorkTypeService;
     }
 
     @Transactional
@@ -184,7 +183,7 @@ public class BidService {
         revision.setUpdatedByUserId(currentUserId);
         revision.setIsDeleted(false);
         revision.setCustomerDisplayMode(CustomerDisplayMode.ITEM_LEVEL);
-        revision.setPriceDisplayMode(EstimatePriceDisplayMode.ITEM_TYPE_LEVEL);
+        revision.setPriceDisplayMode(EstimatePriceDisplayMode.WORK_TYPE_LEVEL);
 
         BidRevision savedRevision = bidRevisionRepository.save(revision);
 
@@ -471,7 +470,7 @@ public class BidService {
         newRevision.setPriceDisplayMode(
                 sourceRevision.getPriceDisplayMode() != null
                         ? sourceRevision.getPriceDisplayMode()
-                        : EstimatePriceDisplayMode.ITEM_TYPE_LEVEL);
+                        : EstimatePriceDisplayMode.WORK_TYPE_LEVEL);
 
         BidRevision savedRevision = bidRevisionRepository.save(newRevision);
 
@@ -676,7 +675,7 @@ public class BidService {
         revision.setPriceDisplayMode(
                 currentRevision.getPriceDisplayMode() != null
                         ? currentRevision.getPriceDisplayMode()
-                        : EstimatePriceDisplayMode.ITEM_TYPE_LEVEL);
+                        : EstimatePriceDisplayMode.WORK_TYPE_LEVEL);
 
         BidRevision savedRevision = bidRevisionRepository.save(revision);
 
@@ -951,13 +950,21 @@ public class BidService {
                 .findTopDisplayOrderByBidRevisionId(bidRevisionId)
                 .orElse(0) + 1;
 
-        ItemType itemType = getActiveItemType(request.getItemTypeId());
-        TaxRate taxRate = getActiveTaxRate(request.getTaxRateId());
+        CompanyWorkType companyWorkType = companyWorkTypeService.getSelectableWorkType(
+                request.getCompanyWorkTypeId());
+
+        TaxRate taxRate = getActiveTaxRate(
+                request.getTaxRateId());
 
         BidRevisionItem item = new BidRevisionItem();
 
-        item.setItemType(itemType);
-        applyTaxRateSnapshot(item, taxRate);
+        applyCompanyWorkTypeSnapshot(
+                item,
+                companyWorkType);
+
+        applyTaxRateSnapshot(
+                item,
+                taxRate);
 
         item.setIsTaxable(true);
         item.setShowCustomerRow(true);
@@ -1160,13 +1167,14 @@ public class BidService {
     }
 
     @Transactional
-    public void deleteRevisionGroupItemType(
+    public void deleteRevisionGroupCompanyWorkType(
             UUID bidRevisionId,
-            DeleteRevisionGroupItemTypeRequest request) {
+            DeleteRevisionGroupCompanyWorkTypeRequest request) {
 
         BidRevision revision = bidRevisionRepository
                 .findByBidRevisionIdAndIsDeletedFalse(bidRevisionId)
-                .orElseThrow(() -> new NotFoundException("Bid revision not found"));
+                .orElseThrow(() -> new NotFoundException(
+                        "Bid revision not found"));
 
         Bid bid = revision.getBid();
 
@@ -1176,10 +1184,10 @@ public class BidService {
         ensureCurrentRevisionCanBeChanged(bid, revision);
 
         List<BidRevisionItem> items = bidRevisionItemRepository
-                .findByBidRevision_BidRevisionIdAndGroupNameAndItemType_ItemTypeIdAndIsDeletedFalse(
+                .findByBidRevision_BidRevisionIdAndGroupNameAndCompanyWorkType_CompanyWorkTypeIdAndIsDeletedFalse(
                         bidRevisionId,
                         request.getGroupName(),
-                        request.getItemTypeId());
+                        request.getCompanyWorkTypeId());
 
         if (items.isEmpty()) {
             return;
@@ -1188,16 +1196,22 @@ public class BidService {
         LocalDateTime now = LocalDateTime.now();
         UUID currentUserId = currentUserUtil.getCurrentUserId();
 
-        softDeleteItemsWithCosts(items, now, currentUserId);
+        softDeleteItemsWithCosts(
+                items,
+                now,
+                currentUserId);
 
-        pricingService.recalculateRevisionTotals(revision);
+        pricingService.recalculateRevisionTotals(
+                revision);
 
         revision.setUpdatedAtUtc(now);
         revision.setUpdatedByUserId(currentUserId);
+
         bidRevisionRepository.save(revision);
 
         bid.setUpdatedAtUtc(now);
         bid.setUpdatedByUserId(currentUserId);
+
         bidRepository.save(bid);
     }
 
@@ -1253,10 +1267,13 @@ public class BidService {
             item.setCustomerNote(request.getCustomerNote());
         }
 
-        if (request.getItemTypeId() != null) {
-            ItemType itemType = getActiveItemType(request.getItemTypeId());
+        if (request.getCompanyWorkTypeId() != null) {
+            CompanyWorkType companyWorkType = companyWorkTypeService.getSelectableWorkType(
+                    request.getCompanyWorkTypeId());
 
-            item.setItemType(itemType);
+            applyCompanyWorkTypeSnapshot(
+                    item,
+                    companyWorkType);
         }
 
         if (request.getTaxRateId() != null) {
@@ -1623,11 +1640,6 @@ public class BidService {
         bidRepository.save(bid);
     }
 
-    private ItemType getActiveItemType(UUID itemTypeId) {
-        return itemTypeRepository.findByItemTypeIdAndIsDeletedFalseAndIsActiveTrue(itemTypeId)
-                .orElseThrow(() -> new BusinessRuleException("Item type not found or inactive"));
-    }
-
     private TaxRate getActiveTaxRate(UUID taxRateId) {
         return taxRateRepository.findByTaxRateIdAndIsDeletedFalseAndIsActiveTrue(taxRateId)
                 .orElseThrow(() -> new BusinessRuleException("Tax rate not found or inactive"));
@@ -1783,8 +1795,17 @@ public class BidService {
         clonedItem.setTaxAmount(sourceItem.getTaxAmount());
         clonedItem.setPriceWithTax(sourceItem.getPriceWithTax());
 
-        clonedItem.setItemType(sourceItem.getItemType());
-        clonedItem.setTaxRate(sourceItem.getTaxRate());
+        clonedItem.setCompanyWorkType(
+                sourceItem.getCompanyWorkType());
+
+        clonedItem.setCompanyWorkTypeSnapshotCode(
+                sourceItem.getCompanyWorkTypeSnapshotCode());
+
+        clonedItem.setCompanyWorkTypeSnapshotName(
+                sourceItem.getCompanyWorkTypeSnapshotName());
+
+        clonedItem.setTaxRate(
+                sourceItem.getTaxRate());
         clonedItem.setTaxRateSnapshotCode(sourceItem.getTaxRateSnapshotCode());
         clonedItem.setTaxRateSnapshotName(sourceItem.getTaxRateSnapshotName());
         clonedItem.setTaxRateSnapshotPercent(sourceItem.getTaxRateSnapshotPercent());
@@ -1996,7 +2017,7 @@ public class BidService {
     private int customerDisplayLevel(CustomerDisplayMode mode) {
         return switch (mode) {
             case GROUP_LEVEL -> 1;
-            case ITEM_TYPE_LEVEL -> 2;
+            case WORK_TYPE_LEVEL -> 2;
             case ITEM_LEVEL -> 3;
             case ITEM_COST_LEVEL -> 4;
         };
@@ -2006,7 +2027,7 @@ public class BidService {
         return switch (mode) {
             case TOTALS -> 0;
             case GROUP_LEVEL -> 1;
-            case ITEM_TYPE_LEVEL -> 2;
+            case WORK_TYPE_LEVEL -> 2;
             case ITEM_LEVEL -> 3;
             case ITEM_COST_LEVEL -> 4;
         };
@@ -2054,5 +2075,16 @@ public class BidService {
         revision.setUpdatedByUserId(currentUserId);
 
         bidRevisionRepository.save(revision);
+    }
+
+    private void applyCompanyWorkTypeSnapshot(
+            BidRevisionItem item,
+            CompanyWorkType companyWorkType) {
+
+        item.setCompanyWorkType(companyWorkType);
+        item.setCompanyWorkTypeSnapshotCode(
+                companyWorkType.getCode());
+        item.setCompanyWorkTypeSnapshotName(
+                companyWorkType.getName());
     }
 }

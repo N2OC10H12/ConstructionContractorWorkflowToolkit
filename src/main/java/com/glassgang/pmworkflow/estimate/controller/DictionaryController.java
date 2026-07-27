@@ -6,15 +6,12 @@ import com.glassgang.pmworkflow.estimate.dto.dictionary.CostRateResponse;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.CreateConstructionObjectTypeRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.CreateCostElementRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.CreateCostRateRequest;
-import com.glassgang.pmworkflow.estimate.dto.dictionary.CreateItemTypeRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.CreateTaxRateRequest;
-import com.glassgang.pmworkflow.estimate.dto.dictionary.ItemTypeResponse;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.TaxRateResponse;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.UnitOfMeasureResponse;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.UpdateConstructionObjectTypeRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.UpdateCostElementRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.UpdateCostRateRequest;
-import com.glassgang.pmworkflow.estimate.dto.dictionary.UpdateItemTypeRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.UpdateTaxRateRequest;
 import com.glassgang.pmworkflow.estimate.service.DictionaryService;
 
@@ -35,11 +32,6 @@ public class DictionaryController {
         this.dictionaryService = dictionaryService;
     }
 
-    @GetMapping("/item-types")
-    public List<ItemTypeResponse> getItemTypes() {
-        return dictionaryService.getItemTypes();
-    }
-
     @GetMapping("/tax-rates")
     public List<TaxRateResponse> getTaxRates() {
         return dictionaryService.getTaxRates();
@@ -55,25 +47,6 @@ public class DictionaryController {
             @RequestParam(required = false) UUID costElementId) {
 
         return dictionaryService.getCostRates(costElementId);
-    }
-
-    @PostMapping("/item-types")
-    public ItemTypeResponse createItemType(
-            @Valid @RequestBody CreateItemTypeRequest request) {
-        return dictionaryService.createItemType(request);
-    }
-
-    @PatchMapping("/item-types/{itemTypeId}")
-    public ItemTypeResponse updateItemType(
-            @PathVariable UUID itemTypeId,
-            @Valid @RequestBody UpdateItemTypeRequest request) {
-        return dictionaryService.updateItemType(itemTypeId, request);
-    }
-
-    @DeleteMapping("/item-types/{itemTypeId}")
-    public void deleteItemType(
-            @PathVariable UUID itemTypeId) {
-        dictionaryService.deleteItemType(itemTypeId);
     }
 
     @PostMapping("/cost-elements")

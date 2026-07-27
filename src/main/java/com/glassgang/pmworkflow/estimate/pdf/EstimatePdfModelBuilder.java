@@ -20,7 +20,7 @@ import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfCustomerBlock;
 import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfGroup;
 import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfItemCostLine;
 import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfItemLine;
-import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfItemTypeGroup;
+import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfWorkTypeGroup;
 import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfJobBlock;
 import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfModel;
 import com.glassgang.pmworkflow.estimate.pdf.model.EstimatePdfPrintableRow;
@@ -44,7 +44,7 @@ import java.util.UUID;
 public class EstimatePdfModelBuilder {
 
     private static final String NO_GROUP_KEY = "__NO_GROUP__";
-    private static final String NO_ITEM_TYPE_KEY = "__NO_ITEM_TYPE__";
+    private static final String NO_WORK_TYPE_KEY = "__NO_WORK_TYPE__";
 
     private final BidRevisionRepository bidRevisionRepository;
     private final BidRevisionItemRepository bidRevisionItemRepository;
@@ -101,7 +101,7 @@ public class EstimatePdfModelBuilder {
         model.setPriceDisplayMode(
                 revision.getPriceDisplayMode() != null
                         ? revision.getPriceDisplayMode()
-                        : EstimatePriceDisplayMode.ITEM_TYPE_LEVEL);
+                        : EstimatePriceDisplayMode.WORK_TYPE_LEVEL);
 
         model.setShowHierarchyPriceColumn(
                 model.getPriceDisplayMode() != EstimatePriceDisplayMode.TOTALS);
@@ -266,7 +266,7 @@ public class EstimatePdfModelBuilder {
 
     private List<EstimatePdfGroup> buildGroups(List<BidRevisionItem> items) {
         Map<String, EstimatePdfGroup> groupMap = new LinkedHashMap<>();
-        Map<String, Map<String, EstimatePdfItemTypeGroup>> itemTypeMapsByGroup = new LinkedHashMap<>();
+        Map<String, Map<String, EstimatePdfWorkTypeGroup>> workTypeMapsByGroup = new LinkedHashMap<>();
 
         for (BidRevisionItem item : items) {
             String groupKey = groupKey(item);
@@ -279,38 +279,42 @@ public class EstimatePdfModelBuilder {
                 return newGroup;
             });
 
-            Map<String, EstimatePdfItemTypeGroup> itemTypeMap = itemTypeMapsByGroup.computeIfAbsent(groupKey,
+            Map<String, EstimatePdfWorkTypeGroup> workTypeMap = workTypeMapsByGroup.computeIfAbsent(groupKey,
                     key -> new LinkedHashMap<>());
 
-            String itemTypeKey = itemTypeKey(item);
-            EstimatePdfItemTypeGroup itemTypeGroup = itemTypeMap.computeIfAbsent(itemTypeKey, key -> {
-                EstimatePdfItemTypeGroup newItemTypeGroup = new EstimatePdfItemTypeGroup();
+            String workTypeKey = workTypeKey(item);
+            EstimatePdfWorkTypeGroup workTypeGroup = workTypeMap.computeIfAbsent(workTypeKey, key -> {
+                EstimatePdfWorkTypeGroup newWorkTypeGroup = new EstimatePdfWorkTypeGroup();
 
-                if (item.getItemType() != null) {
-                    newItemTypeGroup.setItemTypeId(item.getItemType().getItemTypeId());
-                    newItemTypeGroup.setItemTypeCode(item.getItemType().getCode());
-                    newItemTypeGroup.setItemTypeName(item.getItemType().getName());
+                if (item.getCompanyWorkType() != null) {
+                    newWorkTypeGroup.setWorkTypeId(
+                            item.getCompanyWorkType().getCompanyWorkTypeId());
                 }
 
-                newItemTypeGroup.setSubtotalPrice(BigDecimal.ZERO);
-                newItemTypeGroup.setTaxAmount(BigDecimal.ZERO);
-                newItemTypeGroup.setTotalPrice(BigDecimal.ZERO);
+                newWorkTypeGroup.setWorkTypeCode(
+                        item.getCompanyWorkTypeSnapshotCode());
+                newWorkTypeGroup.setWorkTypeName(
+                        item.getCompanyWorkTypeSnapshotName());
 
-                group.getItemTypes().add(newItemTypeGroup);
+                newWorkTypeGroup.setSubtotalPrice(BigDecimal.ZERO);
+                newWorkTypeGroup.setTaxAmount(BigDecimal.ZERO);
+                newWorkTypeGroup.setTotalPrice(BigDecimal.ZERO);
 
-                return newItemTypeGroup;
+                group.getWorkTypes().add(newWorkTypeGroup);
+
+                return newWorkTypeGroup;
             });
 
             EstimatePdfItemLine itemLine = buildItemLine(item);
-            itemTypeGroup.getItems().add(itemLine);
+            workTypeGroup.getItems().add(itemLine);
 
             BigDecimal itemSubtotalForRollup = subtotalForRollup(itemLine);
             BigDecimal itemTax = nvl(itemLine.getTaxAmount());
             BigDecimal itemTotal = nvl(itemLine.getPriceWithTax());
 
-            itemTypeGroup.setSubtotalPrice(nvl(itemTypeGroup.getSubtotalPrice()).add(itemSubtotalForRollup));
-            itemTypeGroup.setTaxAmount(nvl(itemTypeGroup.getTaxAmount()).add(itemTax));
-            itemTypeGroup.setTotalPrice(nvl(itemTypeGroup.getTotalPrice()).add(itemTotal));
+            workTypeGroup.setSubtotalPrice(nvl(workTypeGroup.getSubtotalPrice()).add(itemSubtotalForRollup));
+            workTypeGroup.setTaxAmount(nvl(workTypeGroup.getTaxAmount()).add(itemTax));
+            workTypeGroup.setTotalPrice(nvl(workTypeGroup.getTotalPrice()).add(itemTotal));
 
             group.setSubtotalPrice(nvl(group.getSubtotalPrice()).add(itemSubtotalForRollup));
             group.setTaxAmount(nvl(group.getTaxAmount()).add(itemTax));
@@ -393,12 +397,24 @@ public class EstimatePdfModelBuilder {
                 : item.getGroupName();
     }
 
-    private String itemTypeKey(BidRevisionItem item) {
-        if (item.getItemType() == null || item.getItemType().getItemTypeId() == null) {
-            return NO_ITEM_TYPE_KEY;
+    private String workTypeKey(BidRevisionItem item) {
+        if (item.getCompanyWorkType() != null
+                && item.getCompanyWorkType().getCompanyWorkTypeId() != null) {
+            return item.getCompanyWorkType()
+                    .getCompanyWorkTypeId()
+                    .toString();
         }
 
-        return item.getItemType().getItemTypeId().toString();
+        if (hasText(item.getCompanyWorkTypeSnapshotCode())
+                || hasText(item.getCompanyWorkTypeSnapshotName())) {
+            return String.valueOf(
+                    item.getCompanyWorkTypeSnapshotCode())
+                    + "|"
+                    + String.valueOf(
+                            item.getCompanyWorkTypeSnapshotName());
+        }
+
+        return NO_WORK_TYPE_KEY;
     }
 
     private BigDecimal subtotalForRollup(EstimatePdfItemLine itemLine) {
@@ -412,7 +428,7 @@ public class EstimatePdfModelBuilder {
     private void applyPriceDisplayMode(EstimatePdfModel model) {
         EstimatePriceDisplayMode priceMode = model.getPriceDisplayMode() != null
                 ? model.getPriceDisplayMode()
-                : EstimatePriceDisplayMode.ITEM_TYPE_LEVEL;
+                : EstimatePriceDisplayMode.WORK_TYPE_LEVEL;
 
         CustomerDisplayMode customerMode = model.getCustomerDisplayMode() != null
                 ? model.getCustomerDisplayMode()
@@ -420,7 +436,7 @@ public class EstimatePdfModelBuilder {
 
         boolean showGroupPrice = priceMode == EstimatePriceDisplayMode.GROUP_LEVEL;
 
-        boolean showItemTypePrice = priceMode == EstimatePriceDisplayMode.ITEM_TYPE_LEVEL;
+        boolean showWorkTypePrice = priceMode == EstimatePriceDisplayMode.WORK_TYPE_LEVEL;
 
         boolean showItemPrice = priceMode == EstimatePriceDisplayMode.ITEM_LEVEL
                 || priceMode == EstimatePriceDisplayMode.ITEM_COST_LEVEL;
@@ -432,10 +448,10 @@ public class EstimatePdfModelBuilder {
         for (EstimatePdfGroup group : model.getGroups()) {
             group.setShowPrice(showGroupPrice);
 
-            for (EstimatePdfItemTypeGroup itemTypeGroup : group.getItemTypes()) {
-                itemTypeGroup.setShowPrice(showItemTypePrice);
+            for (EstimatePdfWorkTypeGroup workTypeGroup : group.getWorkTypes()) {
+                workTypeGroup.setShowPrice(showWorkTypePrice);
 
-                for (EstimatePdfItemLine item : itemTypeGroup.getItems()) {
+                for (EstimatePdfItemLine item : workTypeGroup.getItems()) {
                     item.setShowPrice(showItemPrice);
                     item.setShowCostLines(showCostLines);
 
@@ -454,17 +470,17 @@ public class EstimatePdfModelBuilder {
 
         for (EstimatePdfGroup group : model.getGroups()) {
             if (mode == CustomerDisplayMode.GROUP_LEVEL) {
-                group.getItemTypes().clear();
+                group.getWorkTypes().clear();
                 continue;
             }
 
-            for (EstimatePdfItemTypeGroup itemTypeGroup : group.getItemTypes()) {
-                if (mode == CustomerDisplayMode.ITEM_TYPE_LEVEL) {
-                    itemTypeGroup.getItems().clear();
+            for (EstimatePdfWorkTypeGroup workTypeGroup : group.getWorkTypes()) {
+                if (mode == CustomerDisplayMode.WORK_TYPE_LEVEL) {
+                    workTypeGroup.getItems().clear();
                     continue;
                 }
 
-                for (EstimatePdfItemLine item : itemTypeGroup.getItems()) {
+                for (EstimatePdfItemLine item : workTypeGroup.getItems()) {
                     if (mode == CustomerDisplayMode.ITEM_LEVEL) {
                         item.getCosts().clear();
                     }
@@ -550,17 +566,17 @@ public class EstimatePdfModelBuilder {
             model.getPrintableRows().add(
                     EstimatePdfPrintableRow.forGroup(group));
 
-            for (EstimatePdfItemTypeGroup itemType : group.getItemTypes()) {
+            for (EstimatePdfWorkTypeGroup workType : group.getWorkTypes()) {
                 model.getPrintableRows().add(
-                        EstimatePdfPrintableRow.forItemType(
+                        EstimatePdfPrintableRow.forWorkType(
                                 group,
-                                itemType));
+                                workType));
 
-                for (EstimatePdfItemLine item : itemType.getItems()) {
+                for (EstimatePdfItemLine item : workType.getItems()) {
                     model.getPrintableRows().add(
                             EstimatePdfPrintableRow.forItem(
                                     group,
-                                    itemType,
+                                    workType,
                                     item));
 
                     if (!Boolean.TRUE.equals(item.getShowCostLines())) {
@@ -571,7 +587,7 @@ public class EstimatePdfModelBuilder {
                         model.getPrintableRows().add(
                                 EstimatePdfPrintableRow.forCost(
                                         group,
-                                        itemType,
+                                        workType,
                                         item,
                                         cost));
                     }

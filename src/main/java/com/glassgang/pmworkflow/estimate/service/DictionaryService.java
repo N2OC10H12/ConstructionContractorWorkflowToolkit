@@ -8,20 +8,16 @@ import com.glassgang.pmworkflow.estimate.dto.dictionary.CostRateResponse;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.CreateConstructionObjectTypeRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.CreateCostElementRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.CreateCostRateRequest;
-import com.glassgang.pmworkflow.estimate.dto.dictionary.CreateItemTypeRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.CreateTaxRateRequest;
-import com.glassgang.pmworkflow.estimate.dto.dictionary.ItemTypeResponse;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.TaxRateResponse;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.UnitOfMeasureResponse;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.UpdateConstructionObjectTypeRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.UpdateCostElementRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.UpdateCostRateRequest;
-import com.glassgang.pmworkflow.estimate.dto.dictionary.UpdateItemTypeRequest;
 import com.glassgang.pmworkflow.estimate.dto.dictionary.UpdateTaxRateRequest;
 import com.glassgang.pmworkflow.estimate.entity.ConstructionObjectType;
 import com.glassgang.pmworkflow.estimate.entity.CostElement;
 import com.glassgang.pmworkflow.estimate.entity.CostRate;
-import com.glassgang.pmworkflow.estimate.entity.ItemType;
 import com.glassgang.pmworkflow.estimate.entity.TaxRate;
 import com.glassgang.pmworkflow.estimate.enums.UnitOfMeasure;
 import com.glassgang.pmworkflow.estimate.repository.BidRepository;
@@ -30,7 +26,6 @@ import com.glassgang.pmworkflow.estimate.repository.BidRevisionItemRepository;
 import com.glassgang.pmworkflow.estimate.repository.ConstructionObjectTypeRepository;
 import com.glassgang.pmworkflow.estimate.repository.CostElementRepository;
 import com.glassgang.pmworkflow.estimate.repository.CostRateRepository;
-import com.glassgang.pmworkflow.estimate.repository.ItemTypeRepository;
 import com.glassgang.pmworkflow.estimate.repository.TaxRateRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,7 +38,6 @@ import java.util.Arrays;
 @Service
 public class DictionaryService {
 
-    private final ItemTypeRepository itemTypeRepository;
     private final TaxRateRepository taxRateRepository;
     private final CostElementRepository costElementRepository;
     private final CostRateRepository costRateRepository;
@@ -54,7 +48,6 @@ public class DictionaryService {
     private final BidRepository bidRepository;
 
     public DictionaryService(
-            ItemTypeRepository itemTypeRepository,
             TaxRateRepository taxRateRepository,
             CostElementRepository costElementRepository,
             CostRateRepository costRateRepository,
@@ -63,7 +56,6 @@ public class DictionaryService {
             EstimateAccessService estimateAccessService,
             ConstructionObjectTypeRepository constructionObjectTypeRepository,
             BidRepository bidRepository) {
-        this.itemTypeRepository = itemTypeRepository;
         this.taxRateRepository = taxRateRepository;
         this.costElementRepository = costElementRepository;
         this.costRateRepository = costRateRepository;
@@ -83,15 +75,7 @@ public class DictionaryService {
                 .toList();
     }
 
-    @Transactional(readOnly = true)
-    public List<ItemTypeResponse> getItemTypes() {
-        return itemTypeRepository.findByIsDeletedFalseOrderByCodeAsc()
-                .stream()
-                .map(this::toItemTypeResponse)
-                .toList();
-    }
-
-    @Transactional(readOnly = true)
+@Transactional(readOnly = true)
     public List<TaxRateResponse> getTaxRates() {
         return taxRateRepository.findByIsDeletedFalseOrderByCodeAsc()
                 .stream()
@@ -124,85 +108,7 @@ public class DictionaryService {
                 .toList();
     }
 
-    @Transactional
-    public ItemTypeResponse createItemType(CreateItemTypeRequest request) {
-        estimateAccessService.requireEstimateDictionaryManageAccess();
-
-        String code = normalizeCode(request.getCode());
-
-        if (itemTypeRepository.existsByCode(code)) {
-            throw new BusinessRuleException("Item type code already exists");
-        }
-
-        LocalDateTime now = LocalDateTime.now();
-
-        ItemType itemType = new ItemType();
-        itemType.setItemTypeId(UUID.randomUUID());
-        itemType.setCode(code);
-        itemType.setName(request.getName().trim());
-        itemType.setDescription(request.getDescription());
-        itemType.setIsActive(request.getIsActive() != null ? request.getIsActive() : true);
-        itemType.setIsDeleted(false);
-        itemType.setCreatedAtUtc(now);
-        itemType.setUpdatedAtUtc(now);
-
-        return toItemTypeResponse(itemTypeRepository.save(itemType));
-    }
-
-    @Transactional
-    public ItemTypeResponse updateItemType(UUID itemTypeId, UpdateItemTypeRequest request) {
-        estimateAccessService.requireEstimateDictionaryManageAccess();
-
-        ItemType itemType = itemTypeRepository.findById(itemTypeId)
-                .filter(existing -> !Boolean.TRUE.equals(existing.getIsDeleted()))
-                .orElseThrow(() -> new NotFoundException("Item type not found"));
-
-        if (request.getCode() != null) {
-            String code = normalizeCode(request.getCode());
-
-            itemTypeRepository.findByCode(code)
-                    .filter(existing -> !existing.getItemTypeId().equals(itemTypeId))
-                    .ifPresent(existing -> {
-                        throw new BusinessRuleException("Item type code already exists");
-                    });
-
-            itemType.setCode(code);
-        }
-
-        if (request.getName() != null) {
-            itemType.setName(request.getName().trim());
-        }
-
-        if (request.getDescription() != null) {
-            itemType.setDescription(request.getDescription());
-        }
-
-        if (request.getIsActive() != null) {
-            itemType.setIsActive(request.getIsActive());
-        }
-
-        itemType.setUpdatedAtUtc(LocalDateTime.now());
-
-        return toItemTypeResponse(itemTypeRepository.save(itemType));
-    }
-
-    @Transactional
-    public void deleteItemType(UUID itemTypeId) {
-        estimateAccessService.requireEstimateDictionaryManageAccess();
-
-        ItemType itemType = itemTypeRepository.findById(itemTypeId)
-                .filter(existing -> !Boolean.TRUE.equals(existing.getIsDeleted()))
-                .orElseThrow(() -> new NotFoundException("Item type not found"));
-
-        if (bidRevisionItemRepository.existsByItemType_ItemTypeIdAndIsDeletedFalse(itemTypeId)) {
-            throw new BusinessRuleException("Cannot delete item type because it is used by estimate items");
-        }
-
-        softDelete(itemType);
-        itemTypeRepository.save(itemType);
-    }
-
-    @Transactional
+@Transactional
     public TaxRateResponse createTaxRate(CreateTaxRateRequest request) {
         estimateAccessService.requireEstimateDictionaryManageAccess();
 
@@ -608,15 +514,7 @@ public class DictionaryService {
                 });
     }
 
-    private void softDelete(ItemType itemType) {
-        LocalDateTime now = LocalDateTime.now();
-        itemType.setIsActive(false);
-        itemType.setIsDeleted(true);
-        itemType.setDeletedAtUtc(now);
-        itemType.setUpdatedAtUtc(now);
-    }
-
-    private void softDelete(TaxRate taxRate) {
+private void softDelete(TaxRate taxRate) {
         LocalDateTime now = LocalDateTime.now();
         taxRate.setIsActive(false);
         taxRate.setIsDeleted(true);
@@ -648,17 +546,7 @@ public class DictionaryService {
         constructionObjectType.setUpdatedAtUtc(now);
     }
 
-    private ItemTypeResponse toItemTypeResponse(ItemType itemType) {
-        ItemTypeResponse response = new ItemTypeResponse();
-        response.setItemTypeId(itemType.getItemTypeId());
-        response.setCode(itemType.getCode());
-        response.setName(itemType.getName());
-        response.setDescription(itemType.getDescription());
-        response.setIsActive(itemType.getIsActive());
-        return response;
-    }
-
-    private TaxRateResponse toTaxRateResponse(TaxRate taxRate) {
+private TaxRateResponse toTaxRateResponse(TaxRate taxRate) {
         TaxRateResponse response = new TaxRateResponse();
         response.setTaxRateId(taxRate.getTaxRateId());
         response.setCode(taxRate.getCode());
