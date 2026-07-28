@@ -13,7 +13,6 @@ import com.company.ConstructionContractorWorkflowToolkit.estimate.dto.CreateBidF
 import com.company.ConstructionContractorWorkflowToolkit.estimate.dto.CreateBidRequest;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.dto.CreateBidRevisionItemCostRequest;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.dto.CreateBidRevisionItemRequest;
-import com.company.ConstructionContractorWorkflowToolkit.estimate.dto.CreateBidRevisionRequest;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.dto.DeleteRevisionGroupCompanyWorkTypeRequest;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.dto.DeleteRevisionGroupRequest;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.dto.UpdateBidRequest;
@@ -24,6 +23,7 @@ import com.company.ConstructionContractorWorkflowToolkit.estimate.entity.Bid;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.entity.BidRevision;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.entity.BidRevisionItem;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.entity.BidRevisionItemCost;
+import com.company.ConstructionContractorWorkflowToolkit.estimate.entity.BidRevisionItemQuote;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.entity.ConstructionObjectType;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.entity.CostElement;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.entity.CostRate;
@@ -38,6 +38,7 @@ import com.company.ConstructionContractorWorkflowToolkit.estimate.repository.Bid
 import com.company.ConstructionContractorWorkflowToolkit.estimate.repository.BidRevisionRepository;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.repository.ConstructionObjectTypeRepository;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.repository.BidRevisionItemRepository;
+import com.company.ConstructionContractorWorkflowToolkit.estimate.repository.BidRevisionItemQuoteRepository;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.repository.TaxRateRepository;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.repository.BidRevisionItemCostRepository;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.repository.CostElementRepository;
@@ -50,6 +51,7 @@ import com.company.ConstructionContractorWorkflowToolkit.common.exception.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -72,12 +74,16 @@ public class BidService {
     private final EstimateAuditService estimateAuditService;
     private final ConstructionObjectTypeRepository constructionObjectTypeRepository;
     private final CompanyWorkTypeService companyWorkTypeService;
+    private final BidRevisionItemQuoteRepository bidRevisionItemQuoteRepository;
+    private final BidRevisionItemQuoteService bidRevisionItemQuoteService;
 
     public BidService(
             BidRepository bidRepository,
             BidRevisionRepository bidRevisionRepository,
             BidRevisionItemRepository bidRevisionItemRepository,
             BidRevisionItemCostRepository bidRevisionItemCostRepository,
+            BidRevisionItemQuoteRepository bidRevisionItemQuoteRepository,
+            BidRevisionItemQuoteService bidRevisionItemQuoteService,
             CostElementRepository costElementRepository,
             CostRateRepository costRateRepository,
             BusinessPartnerRepository businessPartnerRepository,
@@ -95,6 +101,8 @@ public class BidService {
         this.bidRevisionRepository = bidRevisionRepository;
         this.bidRevisionItemRepository = bidRevisionItemRepository;
         this.bidRevisionItemCostRepository = bidRevisionItemCostRepository;
+        this.bidRevisionItemQuoteRepository = bidRevisionItemQuoteRepository;
+        this.bidRevisionItemQuoteService = bidRevisionItemQuoteService;
         this.costElementRepository = costElementRepository;
         this.costRateRepository = costRateRepository;
         this.businessPartnerRepository = businessPartnerRepository;
@@ -147,6 +155,7 @@ public class BidService {
         bid.setJobPostalCode(request.getJobPostalCode());
         bid.setJobCountry(request.getJobCountry());
         bid.setDescription(request.getDescription());
+        bid.setEstimateScope(request.getEstimateScope());
         bid.setDepartmentCode(request.getDepartmentCode());
         bid.setBidStatus(BidStatus.DRAFT);
         bid.setCreatedAtUtc(now);
@@ -287,6 +296,10 @@ public class BidService {
             bid.setDescription(request.getDescription());
         }
 
+        if (request.getEstimateScope() != null) {
+            bid.setEstimateScope(request.getEstimateScope());
+        }
+
         if (request.getDepartmentCode() != null) {
             bid.setDepartmentCode(
                     request.getDepartmentCode());
@@ -401,6 +414,11 @@ public class BidService {
                         ? request.getDescription()
                         : sourceBid.getDescription());
 
+        newBid.setEstimateScope(
+                request.getEstimateScope() != null
+                        ? request.getEstimateScope()
+                        : sourceBid.getEstimateScope());
+
         newBid.setDepartmentCode(
                 request.getDepartmentCode() != null
                         ? request.getDepartmentCode()
@@ -445,9 +463,6 @@ public class BidService {
         newRevision.setTaxRatePercent(null);
 
         copyDefaultTaxRateSnapshot(newRevision, sourceRevision, savedBid.getDefaultTaxRate());
-
-        newRevision.setCustomerNote(sourceRevision.getCustomerNote());
-        newRevision.setInternalNote(sourceRevision.getInternalNote());
 
         newRevision.setSubtotalCost(sourceRevision.getSubtotalCost());
         newRevision.setSubtotalPrice(sourceRevision.getSubtotalPrice());
@@ -596,8 +611,7 @@ public class BidService {
 
     @Transactional
     public BidRevisionResponse createRevision(
-            UUID bidId,
-            CreateBidRevisionRequest request) {
+            UUID bidId) {
 
         Bid bid = bidRepository
                 .findByBidIdAndIsDeletedFalse(bidId)
@@ -648,8 +662,6 @@ public class BidService {
 
         revision.setTaxType(null);
         revision.setTaxRatePercent(null);
-        revision.setCustomerNote(request.getCustomerNote());
-        revision.setInternalNote(request.getInternalNote());
 
         revision.setSubtotalCost(currentRevision.getSubtotalCost());
         revision.setSubtotalPrice(currentRevision.getSubtotalPrice());
@@ -1073,6 +1085,11 @@ public class BidService {
 
         bidRevisionItemCostRepository.saveAll(activeCosts);
 
+        bidRevisionItemQuoteService
+                .deleteQuotesForParentItems(
+                        List.of(
+                                item.getBidRevisionItemId()));
+
         item.setIsDeleted(true);
         item.setDeletedAtUtc(now);
         item.setDeletedByUserId(currentUserId);
@@ -1098,6 +1115,22 @@ public class BidService {
             List<BidRevisionItem> items,
             LocalDateTime now,
             UUID currentUserId) {
+
+        List<UUID> itemIds = new ArrayList<>(items.size());
+
+        for (BidRevisionItem item : items) {
+
+            if (item == null) {
+                throw new IllegalArgumentException(
+                        "Items cannot contain null values");
+            }
+
+            itemIds.add(
+                    item.getBidRevisionItemId());
+        }
+
+        bidRevisionItemQuoteService
+                .deleteQuotesForParentItems(itemIds);
 
         for (BidRevisionItem item : items) {
 
@@ -1756,13 +1789,31 @@ public class BidService {
                         sourceRevision.getBidRevisionId());
 
         for (BidRevisionItem sourceItem : sourceItems) {
-            BidRevisionItem savedClonedItem = cloneRevisionItem(sourceItem, targetRevision, now, currentUserId);
+            BidRevisionItem savedClonedItem = cloneRevisionItem(
+                    sourceItem,
+                    targetRevision,
+                    now,
+                    currentUserId);
 
-            cloneItemCosts(sourceItem, savedClonedItem, now, currentUserId);
+            cloneItemCosts(
+                    sourceItem,
+                    savedClonedItem,
+                    now,
+                    currentUserId);
 
-            pricingService.recalculateItemTotals(savedClonedItem);
+            cloneItemQuotes(
+                    sourceItem,
+                    savedClonedItem,
+                    now,
+                    currentUserId);
+
+            pricingService.recalculateItemTotals(
+                    savedClonedItem);
+
             savedClonedItem.setUpdatedAtUtc(now);
-            bidRevisionItemRepository.save(savedClonedItem);
+
+            bidRevisionItemRepository.save(
+                    savedClonedItem);
         }
     }
 
@@ -1936,6 +1987,7 @@ public class BidService {
                 + "; jobPostalCode=" + bid.getJobPostalCode()
                 + "; jobCountry=" + bid.getJobCountry()
                 + "; description=" + bid.getDescription()
+                + "; estimateScope=" + bid.getEstimateScope()
                 + "; departmentCode=" + bid.getDepartmentCode()
                 + "; constructionType=" + bid.getConstructionType()
                 + "; constructionObjectTypeId=" + constructionObjectTypeId
@@ -2086,5 +2138,50 @@ public class BidService {
                 companyWorkType.getCode());
         item.setCompanyWorkTypeSnapshotName(
                 companyWorkType.getName());
+    }
+
+    private void cloneItemQuotes(
+            BidRevisionItem sourceItem,
+            BidRevisionItem targetItem,
+            LocalDateTime now,
+            UUID currentUserId) {
+
+        List<BidRevisionItemQuote> sourceQuotes = bidRevisionItemQuoteRepository
+                .findByBidRevisionItem_BidRevisionItemIdOrderByDisplayOrderAsc(
+                        sourceItem.getBidRevisionItemId());
+
+        for (BidRevisionItemQuote sourceQuote : sourceQuotes) {
+
+            BidRevisionItemQuote clonedQuote = new BidRevisionItemQuote();
+
+            clonedQuote.setBidRevisionItemQuoteId(
+                    UUID.randomUUID());
+
+            clonedQuote.setBidRevisionItem(
+                    targetItem);
+
+            /*
+             * Reuse the same immutable StoredFile.
+             * Do not create another physical object or StoredFile row.
+             */
+            clonedQuote.setStoredFile(
+                    sourceQuote.getStoredFile());
+
+            clonedQuote.setDescription(
+                    sourceQuote.getDescription());
+
+            clonedQuote.setDisplayOrder(
+                    sourceQuote.getDisplayOrder());
+
+            /*
+             * These fields describe the new attachment relationship,
+             * not the original physical upload.
+             */
+            clonedQuote.setCreatedAtUtc(now);
+            clonedQuote.setCreatedByUserId(currentUserId);
+
+            bidRevisionItemQuoteRepository.save(
+                    clonedQuote);
+        }
     }
 }

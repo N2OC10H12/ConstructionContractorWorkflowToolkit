@@ -21,6 +21,9 @@ public class CreateBidFromRevisionRequest {
     @Size(max = 4000, message = "description must be <= 4000 characters")
     private String description;
 
+    @Size(max = 1000, message = "estimateScope must be <= 1000 characters")
+    private String estimateScope;
+
     private DepartmentCode departmentCode;
     private ConstructionType constructionType;
     private UUID constructionObjectTypeId;

@@ -31,7 +31,8 @@ public class FileStorageService {
 
         String safeFileName = Paths.get(originalFileName).getFileName().toString();
 
-        Path substepFolder = Paths.get(properties.getRootPath(), substepId.toString());
+        Path substepFolder = properties.getRootPath()
+                .resolve(substepId.toString());
 
         try {
             Files.createDirectories(substepFolder);
@@ -63,7 +64,8 @@ public class FileStorageService {
                 ? extension.substring(1)
                 : extension;
 
-        Path folder = Paths.get(properties.getRootPath(), relativeFolder);
+        Path folder = properties.getRootPath()
+                .resolve(relativeFolder);
 
         try {
             Files.createDirectories(folder);

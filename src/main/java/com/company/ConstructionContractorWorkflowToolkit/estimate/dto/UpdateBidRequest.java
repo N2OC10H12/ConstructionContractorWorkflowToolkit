@@ -35,6 +35,10 @@ public class UpdateBidRequest {
     private String jobCountry;
 
     private String description;
+
+    @Size(max = 1000, message = "estimateScope must be <= 1000 characters")
+    private String estimateScope;
+
     private DepartmentCode departmentCode;
     private ConstructionType constructionType;
     private UUID constructionObjectTypeId;

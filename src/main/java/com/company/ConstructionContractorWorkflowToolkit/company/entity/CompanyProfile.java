@@ -7,6 +7,8 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import com.company.ConstructionContractorWorkflowToolkit.file.entity.StoredFile;
+
 @Getter
 @Setter
 @Entity
@@ -95,23 +97,9 @@ public class CompanyProfile {
     @Column(name = "website")
     private String website;
 
-    @Column(name = "logo_file_id")
-    private UUID logoFileId;
-
-    @Column(name = "logo_original_filename")
-    private String logoOriginalFilename;
-
-    @Column(name = "logo_content_type", length = 100)
-    private String logoContentType;
-
-    @Column(name = "logo_size_bytes")
-    private Long logoSizeBytes;
-
-    @Column(name = "logo_storage_path")
-    private String logoStoragePath;
-
-    @Column(name = "logo_url")
-    private String logoUrl;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "logo_stored_file_id", foreignKey = @ForeignKey(name = "fk_company_profile_logo_stored_file"))
+    private StoredFile logoStoredFile;
 
     @Column(name = "sync_token", nullable = false)
     private Integer syncToken;
@@ -130,6 +118,9 @@ public class CompanyProfile {
 
     @Column(name = "updated_by_user_id")
     private UUID updatedByUserId;
+
+    @Column(name = "introduction_data", length = 1500)
+    private String introductionData;
 
     @PrePersist
     void prePersist() {

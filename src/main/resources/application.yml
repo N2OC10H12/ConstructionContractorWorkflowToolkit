@@ -11,3 +11,8 @@ server:
 logging:
   level:
     org.springframework.boot.context.config: DEBUG
+
+app:
+  file-storage:
+    provider: ${FILE_STORAGE_PROVIDER:LOCAL}
+    root-path: ${FILE_STORAGE_ROOT_PATH:./data/uploads}
