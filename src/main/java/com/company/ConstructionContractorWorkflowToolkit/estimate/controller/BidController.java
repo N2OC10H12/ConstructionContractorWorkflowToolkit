@@ -6,7 +6,6 @@ import com.company.ConstructionContractorWorkflowToolkit.estimate.dto.BidRevisio
 import com.company.ConstructionContractorWorkflowToolkit.estimate.dto.CreateBidFromRevisionRequest;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.dto.CreateBidRequest;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.dto.CreateBidRevisionItemCostRequest;
-import com.company.ConstructionContractorWorkflowToolkit.estimate.dto.CreateBidRevisionRequest;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.dto.DeleteRevisionGroupCompanyWorkTypeRequest;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.dto.DeleteRevisionGroupRequest;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.dto.UpdateBidRequest;
@@ -69,10 +68,9 @@ public class BidController {
 
     @PostMapping("/{bidId}/revisions")
     public BidRevisionResponse createRevision(
-            @PathVariable UUID bidId,
-            @Valid @RequestBody CreateBidRevisionRequest request) {
+            @PathVariable UUID bidId) {
 
-        return bidService.createRevision(bidId, request);
+        return bidService.createRevision(bidId);
     }
 
     @PatchMapping("/revisions/{bidRevisionId}/display-modes")

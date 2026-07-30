@@ -4,12 +4,16 @@ import com.company.ConstructionContractorWorkflowToolkit.company.dto.CompanyProf
 import com.company.ConstructionContractorWorkflowToolkit.company.dto.UpdateCompanyProfileRequest;
 import com.company.ConstructionContractorWorkflowToolkit.company.entity.CompanyProfile;
 import com.company.ConstructionContractorWorkflowToolkit.company.repository.CompanyProfileRepository;
-import com.company.ConstructionContractorWorkflowToolkit.file.service.FileStorageService;
+import com.company.ConstructionContractorWorkflowToolkit.file.entity.StoredFile;
+import com.company.ConstructionContractorWorkflowToolkit.file.service.StoredFileService;
+import com.company.ConstructionContractorWorkflowToolkit.file.storage.StoredObjectContent;
 
 import lombok.RequiredArgsConstructor;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -17,9 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.net.MalformedURLException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.Locale;
@@ -38,6 +39,8 @@ public class CompanyProfileService {
     private static final long MAX_LOGO_SIZE_BYTES = 5L * 1024L * 1024L;
 
     private static final String LOGO_URL = "/api/company/profile/logo";
+
+    private static final Logger log = LoggerFactory.getLogger(CompanyProfileService.class);
 
     private static final Set<String> ALLOWED_LOGO_EXTENSIONS = Set.of(
             "png", "jpg", "jpeg", "webp", "bmp");
@@ -81,10 +84,16 @@ public class CompanyProfileService {
 
             "primaryPhone",
             "email",
-            "website");
+            "website",
+            "introductionData");
 
     private final CompanyProfileRepository companyProfileRepository;
-    private final FileStorageService fileStorageService;
+    private final StoredFileService storedFileService;
+
+    /*
+     * Temporary dependency for a logo created before the StoredFile migration.
+     * Remove after legacy logo columns and paths have been retired.
+     */
 
     public record CompanyLogoResource(
             Resource resource,
@@ -148,6 +157,11 @@ public class CompanyProfileService {
         applyOptionalString(request, "primaryPhone", profile::setPrimaryPhone, 50);
         applyOptionalString(request, "email", profile::setEmail, 255);
         applyOptionalString(request, "website", profile::setWebsite, 255);
+        applyOptionalString(
+                request,
+                "introductionData",
+                profile::setIntroductionData,
+                1500);
 
         profile.setSyncToken(profile.getSyncToken() + 1);
         profile.setUpdatedAtUtc(LocalDateTime.now());
@@ -156,69 +170,59 @@ public class CompanyProfileService {
     }
 
     @Transactional
-    public CompanyProfileResponse uploadLogo(MultipartFile file, Integer syncToken) {
+    public CompanyProfileResponse uploadLogo(
+            MultipartFile file,
+            Integer syncToken) {
+
         CompanyProfile profile = getDefaultProfileEntity();
 
         validateSyncToken(profile, syncToken);
         validateLogoFile(file);
 
-        UUID logoFileId = UUID.randomUUID();
-        String originalFilename = Paths.get(file.getOriginalFilename()).getFileName().toString();
-        String extension = getExtension(originalFilename);
+        StoredFile previousStoredFile = profile.getLogoStoredFile();
 
-        String oldStoragePath = profile.getLogoStoragePath();
+        UUID storedFileId = UUID.randomUUID();
 
-        String storagePath = fileStorageService.storeInFolder(
-                "company/logo",
-                logoFileId,
-                file,
-                extension);
+        String objectKey = "company-profiles/"
+                + profile.getCompanyProfileId()
+                + "/logos/"
+                + storedFileId;
 
-        fileStorageService.deleteByPath(oldStoragePath);
+        StoredFile newStoredFile = storedFileService.store(
+                storedFileId,
+                objectKey,
+                file);
 
-        profile.setLogoFileId(logoFileId);
-        profile.setLogoOriginalFilename(originalFilename);
-        profile.setLogoContentType(file.getContentType());
-        profile.setLogoSizeBytes(file.getSize());
-        profile.setLogoStoragePath(storagePath);
-        profile.setLogoUrl(LOGO_URL);
-
+        profile.setLogoStoredFile(newStoredFile);
         profile.setSyncToken(profile.getSyncToken() + 1);
         profile.setUpdatedAtUtc(LocalDateTime.now());
 
-        return toResponse(companyProfileRepository.save(profile));
+        companyProfileRepository.saveAndFlush(profile);
+
+        deletePreviousReusableLogo(previousStoredFile);
+
+        return toResponse(profile);
     }
 
     @Transactional(readOnly = true)
     public CompanyLogoResource getLogoResource() {
         CompanyProfile profile = getDefaultProfileEntity();
 
-        if (profile.getLogoStoragePath() == null || profile.getLogoStoragePath().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Company logo not found");
+        StoredFile storedFile = profile.getLogoStoredFile();
+
+        if (storedFile == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "Company logo not found");
         }
 
-        try {
-            Path path = Paths.get(profile.getLogoStoragePath());
-            Resource resource = new UrlResource(path.toUri());
+        StoredObjectContent content = storedFileService.loadContent(storedFile);
 
-            if (!resource.exists() || !resource.isReadable()) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Company logo file not found");
-            }
-
-            MediaType mediaType = MediaType.APPLICATION_OCTET_STREAM;
-
-            if (profile.getLogoContentType() != null && !profile.getLogoContentType().isBlank()) {
-                mediaType = MediaType.parseMediaType(profile.getLogoContentType());
-            }
-
-            String filename = profile.getLogoOriginalFilename() == null
-                    ? "company-logo"
-                    : profile.getLogoOriginalFilename();
-
-            return new CompanyLogoResource(resource, mediaType, filename);
-        } catch (MalformedURLException ex) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Company logo file not found");
-        }
+        return new CompanyLogoResource(
+                new InputStreamResource(content.inputStream()),
+                resolveMediaType(storedFile.getContentType()),
+                normalizeLogoResponseFilename(
+                        storedFile.getOriginalFileName()));
     }
 
     @Transactional
@@ -227,39 +231,47 @@ public class CompanyProfileService {
 
         validateSyncToken(profile, syncToken);
 
-        fileStorageService.deleteByPath(profile.getLogoStoragePath());
+        StoredFile previousStoredFile = profile.getLogoStoredFile();
 
-        profile.setLogoFileId(null);
-        profile.setLogoOriginalFilename(null);
-        profile.setLogoContentType(null);
-        profile.setLogoSizeBytes(null);
-        profile.setLogoStoragePath(null);
-        profile.setLogoUrl(null);
-
+        profile.setLogoStoredFile(null);
         profile.setSyncToken(profile.getSyncToken() + 1);
         profile.setUpdatedAtUtc(LocalDateTime.now());
 
-        return toResponse(companyProfileRepository.save(profile));
+        companyProfileRepository.saveAndFlush(profile);
+
+        deletePreviousReusableLogo(previousStoredFile);
+
+        return toResponse(profile);
     }
 
     @Transactional(readOnly = true)
     public String getLogoDataUrl() {
         CompanyProfile profile = getDefaultProfileEntity();
 
-        if (profile.getLogoStoragePath() == null || profile.getLogoStoragePath().isBlank()) {
+        StoredFile storedFile = profile.getLogoStoredFile();
+
+        if (storedFile == null) {
             return null;
         }
 
-        try {
-            byte[] bytes = Files.readAllBytes(Paths.get(profile.getLogoStoragePath()));
+        try (StoredObjectContent content = storedFileService.loadContent(storedFile)) {
 
-            String contentType = profile.getLogoContentType();
-            if (contentType == null || contentType.isBlank()) {
-                contentType = "image/png";
-            }
+            byte[] bytes = content.inputStream().readAllBytes();
 
-            return "data:" + contentType + ";base64," + Base64.getEncoder().encodeToString(bytes);
-        } catch (IOException ex) {
+            String contentType = normalizeLogoDataUrlContentType(
+                    storedFile.getContentType());
+
+            return "data:"
+                    + contentType
+                    + ";base64,"
+                    + Base64.getEncoder().encodeToString(bytes);
+
+        } catch (IOException | RuntimeException exception) {
+            log.warn(
+                    "Unable to load company logo StoredFile {} for PDF rendering",
+                    storedFile.getStoredFileId(),
+                    exception);
+
             return null;
         }
     }
@@ -369,7 +381,29 @@ public class CompanyProfileService {
         return new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
     }
 
-    private CompanyProfileResponse toResponse(CompanyProfile profile) {
+    private CompanyProfileResponse toResponse(
+            CompanyProfile profile) {
+
+        StoredFile logoStoredFile = profile.getLogoStoredFile();
+
+        UUID responseLogoFileId = null;
+        String responseLogoOriginalFilename = null;
+        String responseLogoContentType = null;
+        Long responseLogoSizeBytes = null;
+        String responseLogoUrl = null;
+
+        if (logoStoredFile != null) {
+            responseLogoFileId = logoStoredFile.getStoredFileId();
+
+            responseLogoOriginalFilename = logoStoredFile.getOriginalFileName();
+
+            responseLogoContentType = logoStoredFile.getContentType();
+
+            responseLogoSizeBytes = logoStoredFile.getSizeBytes();
+
+            responseLogoUrl = LOGO_URL;
+        }
+
         return CompanyProfileResponse.builder()
                 .companyProfileId(profile.getCompanyProfileId())
                 .profileCode(profile.getProfileCode())
@@ -393,22 +427,29 @@ public class CompanyProfileService {
                 .legalPostalCode(profile.getLegalPostalCode())
                 .legalCountry(profile.getLegalCountry())
 
-                .customerCommunicationAddressLine1(profile.getCustomerCommunicationAddressLine1())
-                .customerCommunicationAddressLine2(profile.getCustomerCommunicationAddressLine2())
-                .customerCommunicationCity(profile.getCustomerCommunicationCity())
-                .customerCommunicationState(profile.getCustomerCommunicationState())
-                .customerCommunicationPostalCode(profile.getCustomerCommunicationPostalCode())
-                .customerCommunicationCountry(profile.getCustomerCommunicationCountry())
+                .customerCommunicationAddressLine1(
+                        profile.getCustomerCommunicationAddressLine1())
+                .customerCommunicationAddressLine2(
+                        profile.getCustomerCommunicationAddressLine2())
+                .customerCommunicationCity(
+                        profile.getCustomerCommunicationCity())
+                .customerCommunicationState(
+                        profile.getCustomerCommunicationState())
+                .customerCommunicationPostalCode(
+                        profile.getCustomerCommunicationPostalCode())
+                .customerCommunicationCountry(
+                        profile.getCustomerCommunicationCountry())
 
                 .primaryPhone(profile.getPrimaryPhone())
                 .email(profile.getEmail())
                 .website(profile.getWebsite())
+                .introductionData(profile.getIntroductionData())
 
-                .logoFileId(profile.getLogoFileId())
-                .logoOriginalFilename(profile.getLogoOriginalFilename())
-                .logoContentType(profile.getLogoContentType())
-                .logoSizeBytes(profile.getLogoSizeBytes())
-                .logoUrl(profile.getLogoUrl())
+                .logoFileId(responseLogoFileId)
+                .logoOriginalFilename(responseLogoOriginalFilename)
+                .logoContentType(responseLogoContentType)
+                .logoSizeBytes(responseLogoSizeBytes)
+                .logoUrl(responseLogoUrl)
 
                 .syncToken(profile.getSyncToken())
                 .isActive(profile.getIsActive())
@@ -467,5 +508,72 @@ public class CompanyProfileService {
         }
 
         return safeFilename.substring(dotIndex + 1).toLowerCase(Locale.ROOT);
+    }
+
+    private void deletePreviousReusableLogo(
+            StoredFile previousStoredFile) {
+
+        if (previousStoredFile == null) {
+            return;
+        }
+
+        UUID storedFileId = previousStoredFile.getStoredFileId();
+
+        /*
+         * Confirm that Company Profile no longer references it.
+         * Other unexpected typed references remain protected by database FKs.
+         */
+        if (companyProfileRepository
+                .existsByLogoStoredFile_StoredFileId(storedFileId)) {
+
+            throw new IllegalStateException(
+                    "Previous company logo is still referenced");
+        }
+
+        storedFileService.deleteUnreferenced(previousStoredFile);
+    }
+
+    private MediaType resolveMediaType(
+            String contentType) {
+
+        if (contentType == null
+                || contentType.isBlank()) {
+
+            return MediaType.APPLICATION_OCTET_STREAM;
+        }
+
+        try {
+            return MediaType.parseMediaType(contentType);
+        } catch (RuntimeException exception) {
+            return MediaType.APPLICATION_OCTET_STREAM;
+        }
+    }
+
+    private String normalizeLogoDataUrlContentType(
+            String contentType) {
+
+        if (contentType == null
+                || contentType.isBlank()) {
+            return MediaType.IMAGE_PNG_VALUE;
+        }
+
+        try {
+            return MediaType
+                    .parseMediaType(contentType)
+                    .toString();
+        } catch (RuntimeException exception) {
+            return MediaType.IMAGE_PNG_VALUE;
+        }
+    }
+
+    private String normalizeLogoResponseFilename(
+            String filename) {
+
+        if (filename == null
+                || filename.isBlank()) {
+            return "company-logo";
+        }
+
+        return filename;
     }
 }

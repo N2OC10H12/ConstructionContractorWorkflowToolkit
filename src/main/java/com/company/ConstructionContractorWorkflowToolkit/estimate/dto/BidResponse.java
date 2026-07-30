@@ -27,6 +27,7 @@ public class BidResponse {
     private String jobPostalCode;
     private String jobCountry;
     private String description;
+    private String estimateScope;
     private DepartmentCode departmentCode;
     private BidStatus bidStatus;
     private UUID currentRevisionId;

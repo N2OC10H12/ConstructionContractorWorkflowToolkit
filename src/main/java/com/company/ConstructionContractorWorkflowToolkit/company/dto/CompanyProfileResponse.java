@@ -22,6 +22,8 @@ public record CompanyProfileResponse(
         String companyPostalCode,
         String companyCountry,
 
+        String introductionData,
+
         String legalAddressLine1,
         String legalAddressLine2,
         String legalCity,

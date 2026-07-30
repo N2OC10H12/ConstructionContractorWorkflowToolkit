@@ -22,6 +22,8 @@ public class EstimatePdfModel {
     private Integer revisionNumber;
     private String revisionDisplayName;
 
+    private String estimateScope;
+
     private LocalDateTime createdAtUtc;
     private LocalDateTime revisionUpdatedAtUtc;
 

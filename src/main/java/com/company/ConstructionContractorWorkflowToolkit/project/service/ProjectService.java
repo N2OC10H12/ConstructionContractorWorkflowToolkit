@@ -6,6 +6,8 @@ import com.company.ConstructionContractorWorkflowToolkit.common.exception.NotFou
 import com.company.ConstructionContractorWorkflowToolkit.common.util.CurrentUserUtil;
 import com.company.ConstructionContractorWorkflowToolkit.audit.service.ProjectAuditService;
 import com.company.ConstructionContractorWorkflowToolkit.file.repository.SubstepFileRepository;
+import com.company.ConstructionContractorWorkflowToolkit.file.entity.StoredFile;
+import com.company.ConstructionContractorWorkflowToolkit.file.service.StoredFileService;
 import com.company.ConstructionContractorWorkflowToolkit.note.repository.SubstepNoteRepository;
 import com.company.ConstructionContractorWorkflowToolkit.project.dto.CreateProjectRequest;
 import com.company.ConstructionContractorWorkflowToolkit.project.dto.ProjectDetailsResponse;
@@ -33,7 +35,6 @@ import com.company.ConstructionContractorWorkflowToolkit.workflow.entity.Workflo
 import com.company.ConstructionContractorWorkflowToolkit.workflow.repository.WorkflowTemplateRepository;
 
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -66,6 +67,7 @@ public class ProjectService {
     private final SubstepNoteRepository substepNoteRepository;
     private final SubstepFileRepository substepFileRepository;
     private final CurrentUserUtil currentUserUtil;
+    private final StoredFileService storedFileService;
 
     public ProjectService(ProjectRepository projectRepository,
             ProjectMapper projectMapper,
@@ -78,6 +80,7 @@ public class ProjectService {
             ProjectStatusService projectStatusService,
             SubstepNoteRepository substepNoteRepository,
             SubstepFileRepository substepFileRepository,
+            StoredFileService storedFileService,
             CurrentUserUtil currentUserUtil) {
         this.projectRepository = projectRepository;
         this.projectMapper = projectMapper;
@@ -91,6 +94,7 @@ public class ProjectService {
         this.substepNoteRepository = substepNoteRepository;
         this.substepFileRepository = substepFileRepository;
         this.currentUserUtil = currentUserUtil;
+        this.storedFileService = storedFileService;
     }
 
     @Transactional(readOnly = true)
@@ -415,9 +419,32 @@ public class ProjectService {
 
         projectAccessService.requireProjectEditAccess(project);
 
+        /*
+         * Capture the reusable storage records before deleting the Project.
+         * The database cascade will remove Project Substep attachment rows,
+         * but StoredFile rows and physical provider objects are intentionally
+         * not cascade-deleted.
+         */
+        List<StoredFile> projectStoredFiles = substepFileRepository.findStoredFilesByProjectId(projectId);
+
         projectRepository.delete(project);
 
+        /*
+         * Force the Project → Step → Substep → SubstepFile database cascade
+         * before checking whether each StoredFile still has references.
+         */
         entityManager.flush();
+
+        for (StoredFile storedFile : projectStoredFiles) {
+            long remainingReferences = substepFileRepository
+                    .countByStoredFile_StoredFileId(
+                            storedFile.getStoredFileId());
+
+            if (remainingReferences == 0) {
+                storedFileService.deleteUnreferenced(storedFile);
+            }
+        }
+
         entityManager.clear();
     }
 

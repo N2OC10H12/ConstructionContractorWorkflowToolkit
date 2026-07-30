@@ -2,210 +2,450 @@ package com.company.ConstructionContractorWorkflowToolkit.file.service;
 
 import com.company.ConstructionContractorWorkflowToolkit.audit.service.ProjectAuditService;
 import com.company.ConstructionContractorWorkflowToolkit.common.exception.BadRequestException;
-import com.company.ConstructionContractorWorkflowToolkit.project.service.ProjectAccessService;
 import com.company.ConstructionContractorWorkflowToolkit.common.exception.NotFoundException;
-import com.company.ConstructionContractorWorkflowToolkit.common.util.CurrentUserUtil;
 import com.company.ConstructionContractorWorkflowToolkit.file.dto.SubstepFileResponse;
+import com.company.ConstructionContractorWorkflowToolkit.file.entity.StoredFile;
 import com.company.ConstructionContractorWorkflowToolkit.file.entity.SubstepFile;
 import com.company.ConstructionContractorWorkflowToolkit.file.repository.SubstepFileRepository;
+import com.company.ConstructionContractorWorkflowToolkit.file.storage.StoredObjectContent;
 import com.company.ConstructionContractorWorkflowToolkit.project.entity.ProjectSubstep;
 import com.company.ConstructionContractorWorkflowToolkit.project.repository.ProjectSubstepRepository;
+import com.company.ConstructionContractorWorkflowToolkit.project.service.ProjectAccessService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 
 @Service
 public class SubstepFileService {
 
+    private static final String OBJECT_KEY_PREFIX =
+            "project-substeps";
+
     private final SubstepFileRepository fileRepository;
     private final ProjectSubstepRepository substepRepository;
-    private final FileStorageService fileStorageService;
-    private final CurrentUserUtil currentUserUtil;
+    private final StoredFileService storedFileService;
     private final ProjectAccessService projectAccessService;
     private final ProjectAuditService auditService;
 
-    public SubstepFileService(SubstepFileRepository fileRepository,
-                              ProjectSubstepRepository substepRepository,
-                              FileStorageService fileStorageService,
-                              CurrentUserUtil currentUserUtil,
-                              ProjectAccessService projectAccessService,
-                              ProjectAuditService auditService) {
+    public SubstepFileService(
+            SubstepFileRepository fileRepository,
+            ProjectSubstepRepository substepRepository,
+            StoredFileService storedFileService,
+            ProjectAccessService projectAccessService,
+            ProjectAuditService auditService
+    ) {
         this.fileRepository = fileRepository;
         this.substepRepository = substepRepository;
-        this.fileStorageService = fileStorageService;
-        this.currentUserUtil = currentUserUtil;
+        this.storedFileService = storedFileService;
         this.projectAccessService = projectAccessService;
         this.auditService = auditService;
     }
 
     @Transactional
-    public SubstepFileResponse uploadFile(UUID substepId, MultipartFile file) {
-        ProjectSubstep substep = substepRepository.findById(substepId)
-                .orElseThrow(() -> new NotFoundException("Substep not found"));
+    public SubstepFileResponse uploadFile(
+            UUID substepId,
+            MultipartFile file
+    ) {
+        ProjectSubstep substep =
+                requireSubstep(substepId);
 
-        UUID fileId = UUID.randomUUID();
-
-        String storedPath = fileStorageService.store(substepId, fileId, file);
-
+        /*
+         * Authorization must happen before physical content is written.
+         */
         projectAccessService.requireProjectEditAccess(
                 substep.getStep().getProject()
         );
 
-        SubstepFile substepFile = new SubstepFile();
-        substepFile.setId(fileId);
-        substepFile.setSubstep(substep);
-        substepFile.setFileName(file.getOriginalFilename());
-        substepFile.setFileUrl(storedPath);
+        return storeAttachment(substep, file);
+    }
 
-        substepFile.setUploadedBy(currentUserUtil.getCurrentUserId());
+    @Transactional
+    public List<SubstepFileResponse> uploadFiles(
+            UUID substepId,
+            List<MultipartFile> files
+    ) {
+        if (files == null || files.isEmpty()) {
+            throw new BadRequestException(
+                    "At least one file is required"
+            );
+        }
 
-        substepFile.setUploadedAt(LocalDateTime.now());
+        ProjectSubstep substep =
+                requireSubstep(substepId);
 
-        SubstepFile savedFile = fileRepository.save(substepFile);
-
-        auditService.log(
-                substep.getStep().getProject().getId(),
-                "FILE_UPLOADED",
-                "FILE",
-                savedFile.getId(),
-                null,
-                "name=" + savedFile.getFileName()
+        /*
+         * Authorize once before writing the first physical object.
+         */
+        projectAccessService.requireProjectEditAccess(
+                substep.getStep().getProject()
         );
 
-        return toResponse(savedFile);
+        /*
+         * All files participate in the same transaction. If any upload,
+         * attachment insert, or audit operation fails, StoredFileService's
+         * rollback callbacks remove every physical object written during
+         * this batch.
+         */
+        return files.stream()
+                .map(file -> storeAttachment(substep, file))
+                .toList();
     }
 
     @Transactional(readOnly = true)
     public List<SubstepFileResponse> getFiles(UUID substepId) {
-        ProjectSubstep substep = substepRepository.findById(substepId)
-                .orElseThrow(() -> new NotFoundException("Substep not found"));
+        ProjectSubstep substep =
+                requireSubstep(substepId);
 
+        /*
+         * Preserve existing behavior. Listing currently requires edit
+         * access rather than view access.
+         */
         projectAccessService.requireProjectEditAccess(
                 substep.getStep().getProject()
         );
 
-        return fileRepository.findBySubstepOrderByUploadedAtAsc(substep).stream()
+        return fileRepository
+                .findBySubstepOrderByCreatedAtUtcAsc(substep)
+                .stream()
                 .map(this::toResponse)
                 .toList();
     }
 
-    private SubstepFileResponse toResponse(SubstepFile file) {
-        SubstepFileResponse response = new SubstepFileResponse();
-        response.setId(file.getId());
-        response.setSubstepId(file.getSubstep().getId());
-        response.setFileName(file.getFileName());
-        response.setPreviewUrl("/api/files/" + file.getId() + "/preview");
-        response.setDownloadUrl("/api/files/" + file.getId() + "/download");
-        response.setUploadedBy(file.getUploadedBy());
-        response.setUploadedAt(file.getUploadedAt());
-        return response;
-    }
-
-    @Transactional
-    public List<SubstepFileResponse> uploadFiles(UUID substepId, List<MultipartFile> files) {
-        if (files == null || files.isEmpty()) {
-            throw new BadRequestException("At least one file is required");
-        }
-
-        return files.stream()
-                .map(file -> uploadFile(substepId, file))
-                .toList();
-    }
-
+    /**
+     * Loads an attachment through its Project authorization boundary.
+     *
+     * The returned StoredObjectContent owns an open InputStream. The HTTP
+     * controller must pass it to Spring as a Resource so the stream is
+     * closed after the response is written.
+     */
     @Transactional(readOnly = true)
-    public SubstepFile getFileEntity(UUID fileId) {
-        SubstepFile file = fileRepository.findById(fileId)
-                .orElseThrow(() -> new NotFoundException("File not found"));
+    public SubstepFileContent openFile(UUID fileId) {
+        SubstepFile file =
+                requireFileEntity(fileId);
 
         projectAccessService.requireProjectViewAccess(
-                file.getSubstep().getStep().getProject()
+                file.getSubstep()
+                        .getStep()
+                        .getProject()
         );
 
-        return file;
+        StoredFile storedFile =
+                file.getStoredFile();
+
+        StoredObjectContent content =
+                storedFileService.loadContent(storedFile);
+
+        return new SubstepFileContent(
+                storedFile.getOriginalFileName(),
+                storedFile.getContentType(),
+                content
+        );
     }
 
     @Transactional
     public void deleteFile(UUID fileId) {
-        SubstepFile file = fileRepository.findById(fileId)
-                .orElseThrow(() -> new NotFoundException("File not found"));
+        SubstepFile file =
+                requireFileEntity(fileId);
 
         projectAccessService.requireProjectEditAccess(
-                file.getSubstep().getStep().getProject()
+                file.getSubstep()
+                        .getStep()
+                        .getProject()
         );
 
-        Path path = Paths.get(file.getFileUrl());
+        StoredFile storedFile =
+                file.getStoredFile();
 
-        try {
-            Files.deleteIfExists(path);
-        } catch (Exception e) {
-            throw new BadRequestException("Failed to delete physical file");
-        }
+        UUID projectId =
+                file.getSubstep()
+                        .getStep()
+                        .getProject()
+                        .getId();
+
+        String fileName =
+                storedFile.getOriginalFileName();
 
         auditService.log(
-                file.getSubstep().getStep().getProject().getId(),
+                projectId,
                 "FILE_DELETED",
                 "FILE",
                 file.getId(),
-                "name=" + file.getFileName(),
+                "name=" + fileName,
                 null
         );
 
+        /*
+         * Remove and flush the typed attachment before checking whether
+         * its StoredFile remains referenced.
+         */
         fileRepository.delete(file);
+        fileRepository.flush();
+
+        deleteStoredFileWhenUnreferenced(storedFile);
     }
 
     @Transactional
-    public void deleteFiles(UUID substepId, List<UUID> fileIds) {
+    public void deleteFiles(
+            UUID substepId,
+            List<UUID> fileIds
+    ) {
         if (fileIds == null || fileIds.isEmpty()) {
-            throw new BadRequestException("At least one file id is required");
+            throw new BadRequestException(
+                    "At least one file id is required"
+            );
         }
 
-        ProjectSubstep substep = substepRepository.findById(substepId)
-                .orElseThrow(() -> new NotFoundException("Substep not found"));
+        Set<UUID> uniqueFileIds =
+                new LinkedHashSet<>(fileIds);
+
+        if (uniqueFileIds.size() != fileIds.size()) {
+            throw new BadRequestException(
+                    "Duplicate file ids are not allowed"
+            );
+        }
+
+        ProjectSubstep substep =
+                requireSubstep(substepId);
 
         projectAccessService.requireProjectEditAccess(
                 substep.getStep().getProject()
         );
 
-        List<SubstepFile> files = fileRepository.findAllById(fileIds);
+        List<SubstepFile> files =
+                fileRepository.findAllById(uniqueFileIds);
 
-        if (files.size() != fileIds.size()) {
-            throw new NotFoundException("One or more files not found");
+        if (files.size() != uniqueFileIds.size()) {
+            throw new NotFoundException(
+                    "One or more files not found"
+            );
         }
 
         for (SubstepFile file : files) {
-            if (!file.getSubstep().getId().equals(substepId)) {
-                throw new BadRequestException("One or more files do not belong to this substep");
+            if (!file.getSubstep()
+                    .getId()
+                    .equals(substepId)) {
+
+                throw new BadRequestException(
+                        "One or more files do not belong to this substep"
+                );
             }
         }
 
-        for (SubstepFile file : files) {
-            Path path = Paths.get(file.getFileUrl());
-
-            try {
-                Files.deleteIfExists(path);
-            } catch (Exception e) {
-                throw new BadRequestException("Failed to delete physical file");
-            }
-        }
+        Map<UUID, StoredFile> storedFilesById =
+                new LinkedHashMap<>();
 
         for (SubstepFile file : files) {
+            StoredFile storedFile =
+                    file.getStoredFile();
+
+            storedFilesById.put(
+                    storedFile.getStoredFileId(),
+                    storedFile
+            );
+
             auditService.log(
-                    file.getSubstep().getStep().getProject().getId(),
+                    substep.getStep()
+                            .getProject()
+                            .getId(),
                     "FILE_DELETED",
                     "FILE",
                     file.getId(),
-                    "name=" + file.getFileName(),
+                    "name=" +
+                            storedFile.getOriginalFileName(),
                     null
             );
         }
 
+        /*
+         * Delete every attachment relationship first. Only after the flush
+         * can reference counts accurately determine which immutable stored
+         * objects are now unreferenced.
+         */
         fileRepository.deleteAll(files);
+        fileRepository.flush();
+
+        for (StoredFile storedFile :
+                storedFilesById.values()) {
+
+            deleteStoredFileWhenUnreferenced(storedFile);
+        }
+    }
+
+    private SubstepFileResponse storeAttachment(
+            ProjectSubstep substep,
+            MultipartFile file
+    ) {
+        validateUploadFile(file);
+
+        UUID attachmentId =
+                UUID.randomUUID();
+
+        UUID storedFileId =
+                UUID.randomUUID();
+
+        String objectKey =
+                OBJECT_KEY_PREFIX
+                        + "/"
+                        + substep.getId()
+                        + "/"
+                        + storedFileId;
+
+        StoredFile storedFile =
+                storedFileService.store(
+                        storedFileId,
+                        objectKey,
+                        file
+                );
+
+        SubstepFile attachment =
+                new SubstepFile();
+
+        attachment.setId(attachmentId);
+        attachment.setSubstep(substep);
+        attachment.setStoredFile(storedFile);
+        attachment.setCreatedAtUtc(
+                storedFile.getUploadedAtUtc()
+        );
+
+        SubstepFile savedAttachment =
+                fileRepository.saveAndFlush(attachment);
+
+        auditService.log(
+                substep.getStep()
+                        .getProject()
+                        .getId(),
+                "FILE_UPLOADED",
+                "FILE",
+                savedAttachment.getId(),
+                null,
+                "name=" +
+                        storedFile.getOriginalFileName()
+        );
+
+        return toResponse(savedAttachment);
+    }
+
+    private void validateUploadFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BadRequestException(
+                    "File is required"
+            );
+        }
+
+        String originalFileName =
+                file.getOriginalFilename();
+
+        if (originalFileName == null
+                || originalFileName.isBlank()) {
+
+            throw new BadRequestException(
+                    "File name is required"
+            );
+        }
+    }
+
+    private ProjectSubstep requireSubstep(
+            UUID substepId
+    ) {
+        if (substepId == null) {
+            throw new BadRequestException(
+                    "Substep id is required"
+            );
+        }
+
+        return substepRepository.findById(substepId)
+                .orElseThrow(
+                        () -> new NotFoundException(
+                                "Substep not found"
+                        )
+                );
+    }
+
+    private SubstepFile requireFileEntity(
+            UUID fileId
+    ) {
+        if (fileId == null) {
+            throw new BadRequestException(
+                    "File id is required"
+            );
+        }
+
+        return fileRepository.findById(fileId)
+                .orElseThrow(
+                        () -> new NotFoundException(
+                                "File not found"
+                        )
+                );
+    }
+
+    private void deleteStoredFileWhenUnreferenced(
+            StoredFile storedFile
+    ) {
+        long remainingReferences =
+                fileRepository
+                        .countByStoredFile_StoredFileId(
+                                storedFile.getStoredFileId()
+                        );
+
+        if (remainingReferences == 0) {
+            storedFileService.deleteUnreferenced(
+                    storedFile
+            );
+        }
+    }
+
+    private SubstepFileResponse toResponse(
+            SubstepFile file
+    ) {
+        StoredFile storedFile =
+                file.getStoredFile();
+
+        SubstepFileResponse response =
+                new SubstepFileResponse();
+
+        response.setId(file.getId());
+        response.setSubstepId(
+                file.getSubstep().getId()
+        );
+
+        response.setFileName(
+                storedFile.getOriginalFileName()
+        );
+
+        response.setUploadedBy(
+                storedFile.getUploadedBy()
+        );
+
+        response.setUploadedAt(
+                storedFile.getUploadedAtUtc()
+        );
+
+        response.setPreviewUrl(
+                "/api/files/"
+                        + file.getId()
+                        + "/preview"
+        );
+
+        response.setDownloadUrl(
+                "/api/files/"
+                        + file.getId()
+                        + "/download"
+        );
+
+        return response;
+    }
+
+    public record SubstepFileContent(
+            String fileName,
+            String contentType,
+            StoredObjectContent content
+    ) {
     }
 }

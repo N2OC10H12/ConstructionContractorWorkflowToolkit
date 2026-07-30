@@ -9,4 +9,6 @@ import java.util.UUID;
 public interface CompanyProfileRepository extends JpaRepository<CompanyProfile, UUID> {
 
     Optional<CompanyProfile> findByProfileCodeAndIsActiveTrueAndIsDeletedFalse(String profileCode);
+    
+    boolean existsByLogoStoredFile_StoredFileId(UUID storedFileId);
 }
