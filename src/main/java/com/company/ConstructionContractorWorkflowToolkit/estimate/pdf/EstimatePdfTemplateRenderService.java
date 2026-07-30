@@ -6,6 +6,8 @@ import com.company.ConstructionContractorWorkflowToolkit.estimate.pdf.model.Esti
 import com.company.ConstructionContractorWorkflowToolkit.estimate.pdf.model.EstimatePdfModel;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.pdf.model.EstimatePdfPrintableRowPartition;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.repository.EstimatePdfTemplateRepository;
+import com.company.ConstructionContractorWorkflowToolkit.estimate.enums.BidRoundingMode;
+
 import com.samskivert.mustache.Mustache;
 import com.samskivert.mustache.Template;
 import org.springframework.core.io.ClassPathResource;
@@ -31,11 +33,9 @@ import java.util.UUID;
 @Service
 public class EstimatePdfTemplateRenderService {
 
-    private static final String DEFAULT_CLASSPATH_TEMPLATE_PATH =
-            "templates/estimate/pdf/default-estimate-template.html";
+    private static final String DEFAULT_CLASSPATH_TEMPLATE_PATH = "templates/estimate/pdf/default-estimate-template.html";
 
-    private static final DateTimeFormatter DATE_ONLY_FORMATTER =
-            DateTimeFormatter.ISO_LOCAL_DATE;
+    private static final DateTimeFormatter DATE_ONLY_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
 
     private final EstimatePdfModelBuilder estimatePdfModelBuilder;
     private final EstimatePdfTemplateRepository estimatePdfTemplateRepository;
@@ -93,14 +93,11 @@ public class EstimatePdfTemplateRenderService {
 
         EstimatePdfModel model = estimatePdfModelBuilder.build(bidRevisionId);
 
-        EstimatePdfPrintableRowPartition printableRowPartition =
-                printableRowPartitionService.partition(model);
+        EstimatePdfPrintableRowPartition printableRowPartition = printableRowPartitionService.partition(model);
 
-        String htmlWithProtectedBlocks =
-                protectedBlockRenderService.applyProtectedBlocks(htmlTemplate);
+        String htmlWithProtectedBlocks = protectedBlockRenderService.applyProtectedBlocks(htmlTemplate);
 
-        String finalTemplate =
-                injectCss(htmlWithProtectedBlocks, cssTemplate);
+        String finalTemplate = injectCss(htmlWithProtectedBlocks, cssTemplate);
 
         Template template = Mustache.compiler()
                 .defaultValue("")
@@ -145,10 +142,14 @@ public class EstimatePdfTemplateRenderService {
         Map<String, Object> context = new HashMap<>();
 
         context.put("model", model);
-        context.put("money", moneyLambda());
+        context.put(
+                "money",
+                moneyLambda(model.getRoundingMode()));
         context.put("label", labelLambda());
         context.put("dateOnly", dateOnlyLambda());
-        context.put("formatQuantity", quantityLambda());
+        context.put(
+                "formatQuantity",
+                quantityLambda(model.getRoundingMode()));
         context.put("hasCompany", hasCompany(model));
         context.put("hasTaxRate", hasTaxRate(model));
         context.put("hasJobAddress", hasJobAddress(model));
@@ -172,7 +173,9 @@ public class EstimatePdfTemplateRenderService {
         return context;
     }
 
-    private Mustache.Lambda moneyLambda() {
+    private Mustache.Lambda moneyLambda(
+            BidRoundingMode roundingMode) {
+
         return (Template.Fragment fragment, java.io.Writer writer) -> {
             String rawValue = fragment.execute();
 
@@ -180,7 +183,10 @@ public class EstimatePdfTemplateRenderService {
                 return;
             }
 
-            writer.write(formatMoney(rawValue.trim()));
+            writer.write(
+                    formatMoney(
+                            rawValue.trim(),
+                            roundingMode));
         };
     }
 
@@ -208,7 +214,9 @@ public class EstimatePdfTemplateRenderService {
         };
     }
 
-    private Mustache.Lambda quantityLambda() {
+    private Mustache.Lambda quantityLambda(
+            BidRoundingMode roundingMode) {
+
         return (Template.Fragment fragment, java.io.Writer writer) -> {
             String rawValue = fragment.execute();
 
@@ -216,15 +224,35 @@ public class EstimatePdfTemplateRenderService {
                 return;
             }
 
-            writer.write(formatQuantity(rawValue.trim()));
+            writer.write(
+                    formatQuantity(
+                            rawValue.trim(),
+                            roundingMode));
         };
     }
 
-    private String formatMoney(String rawValue) {
+    private String formatMoney(
+            String rawValue,
+            BidRoundingMode roundingMode) {
+
         try {
             BigDecimal value = new BigDecimal(rawValue);
-            return "$" + value.setScale(2, RoundingMode.HALF_UP);
-        } catch (NumberFormatException ex) {
+
+            if (isWholeRoundingMode(roundingMode)) {
+                return "$"
+                        + value.setScale(
+                                0,
+                                RoundingMode.CEILING)
+                                .toPlainString();
+            }
+
+            return "$"
+                    + value.setScale(
+                            2,
+                            RoundingMode.HALF_UP)
+                            .toPlainString();
+
+        } catch (NumberFormatException exception) {
             return rawValue;
         }
     }
@@ -275,10 +303,23 @@ public class EstimatePdfTemplateRenderService {
         return null;
     }
 
-    private String formatQuantity(String rawValue) {
+    private String formatQuantity(
+            String rawValue,
+            BidRoundingMode roundingMode) {
+
         try {
             BigDecimal value = new BigDecimal(rawValue);
-            return value.stripTrailingZeros().toPlainString();
+
+            if (isWholeRoundingMode(roundingMode)) {
+                return value.setScale(
+                        0,
+                        RoundingMode.CEILING)
+                        .toPlainString();
+            }
+
+            return value.stripTrailingZeros()
+                    .toPlainString();
+
         } catch (NumberFormatException exception) {
             return rawValue;
         }
@@ -335,8 +376,7 @@ public class EstimatePdfTemplateRenderService {
     }
 
     private String loadClasspathDefaultTemplate() {
-        ClassPathResource resource =
-                new ClassPathResource(DEFAULT_CLASSPATH_TEMPLATE_PATH);
+        ClassPathResource resource = new ClassPathResource(DEFAULT_CLASSPATH_TEMPLATE_PATH);
 
         try {
             return new String(
@@ -351,5 +391,15 @@ public class EstimatePdfTemplateRenderService {
 
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private boolean isWholeRoundingMode(
+            BidRoundingMode roundingMode) {
+
+        BidRoundingMode effectiveMode = roundingMode != null
+                ? roundingMode
+                : BidRoundingMode.WHOLE;
+
+        return effectiveMode == BidRoundingMode.WHOLE;
     }
 }

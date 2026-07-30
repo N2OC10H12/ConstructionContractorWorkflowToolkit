@@ -5,6 +5,7 @@ import com.company.ConstructionContractorWorkflowToolkit.common.util.CurrentUser
 import com.company.ConstructionContractorWorkflowToolkit.businesspartner.entity.BusinessPartner;
 import com.company.ConstructionContractorWorkflowToolkit.businesspartner.repository.BusinessPartnerRepository;
 import com.company.ConstructionContractorWorkflowToolkit.businesspartner.repository.CustomerProfileRepository;
+import com.company.ConstructionContractorWorkflowToolkit.company.service.CompanyProfileService;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.dto.BidResponse;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.dto.BidRevisionItemCostResponse;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.dto.BidRevisionItemResponse;
@@ -29,6 +30,7 @@ import com.company.ConstructionContractorWorkflowToolkit.estimate.entity.CostEle
 import com.company.ConstructionContractorWorkflowToolkit.estimate.entity.CostRate;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.entity.TaxRate;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.entity.CompanyWorkType;
+import com.company.ConstructionContractorWorkflowToolkit.estimate.enums.BidRoundingMode;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.enums.BidStatus;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.enums.CustomerDisplayMode;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.enums.EstimatePriceDisplayMode;
@@ -76,6 +78,7 @@ public class BidService {
     private final CompanyWorkTypeService companyWorkTypeService;
     private final BidRevisionItemQuoteRepository bidRevisionItemQuoteRepository;
     private final BidRevisionItemQuoteService bidRevisionItemQuoteService;
+    private final CompanyProfileService companyProfileService;
 
     public BidService(
             BidRepository bidRepository,
@@ -96,7 +99,8 @@ public class BidService {
             EstimateAccessService estimateAccessService,
             EstimateAuditService estimateAuditService,
             ConstructionObjectTypeRepository constructionObjectTypeRepository,
-            CompanyWorkTypeService companyWorkTypeService) {
+            CompanyWorkTypeService companyWorkTypeService,
+            CompanyProfileService companyProfileService) {
         this.bidRepository = bidRepository;
         this.bidRevisionRepository = bidRevisionRepository;
         this.bidRevisionItemRepository = bidRevisionItemRepository;
@@ -116,6 +120,7 @@ public class BidService {
         this.estimateAuditService = estimateAuditService;
         this.constructionObjectTypeRepository = constructionObjectTypeRepository;
         this.companyWorkTypeService = companyWorkTypeService;
+        this.companyProfileService = companyProfileService;
     }
 
     @Transactional
@@ -139,6 +144,10 @@ public class BidService {
         if (constructionObjectTypeId != null) {
             constructionObjectType = getActiveConstructionObjectType(constructionObjectTypeId);
         }
+
+        BidRoundingMode roundingMode = request.getRoundingMode() != null
+                ? request.getRoundingMode()
+                : companyProfileService.getDefaultBidRoundingMode();
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -165,6 +174,7 @@ public class BidService {
         bid.setConstructionType(request.getConstructionType());
         bid.setConstructionObjectType(constructionObjectType);
         bid.setDefaultTaxRate(defaultTaxRate);
+        bid.setRoundingMode(roundingMode);
         bid.setIsDeleted(false);
 
         Bid savedBid = bidRepository.save(bid);
@@ -385,6 +395,14 @@ public class BidService {
 
         estimateAccessService.requireBidViewAccess(sourceBid);
 
+        BidRoundingMode roundingMode = request.getRoundingMode() != null
+                ? request.getRoundingMode()
+                : sourceBid.getRoundingMode();
+
+        if (roundingMode == null) {
+            roundingMode = companyProfileService.getDefaultBidRoundingMode();
+        }
+
         BusinessPartner customer = request.getCustomerId() != null
                 ? getActiveCustomerBusinessPartner(request.getCustomerId())
                 : sourceBid.getCustomer();
@@ -437,6 +455,7 @@ public class BidService {
                         : sourceBid.getConstructionObjectType());
 
         newBid.setDefaultTaxRate(sourceBid.getDefaultTaxRate());
+        newBid.setRoundingMode(roundingMode);
 
         newBid.setBidStatus(BidStatus.DRAFT);
         newBid.setCreatedAtUtc(now);
@@ -1806,6 +1825,9 @@ public class BidService {
                     savedClonedItem,
                     now,
                     currentUserId);
+
+            pricingService.recalculateItemMaterialTotals(
+                    savedClonedItem);
 
             pricingService.recalculateItemTotals(
                     savedClonedItem);

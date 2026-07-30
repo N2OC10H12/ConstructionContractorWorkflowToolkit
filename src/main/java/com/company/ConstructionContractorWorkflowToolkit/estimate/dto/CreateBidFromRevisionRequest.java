@@ -1,5 +1,6 @@
 package com.company.ConstructionContractorWorkflowToolkit.estimate.dto;
 
+import com.company.ConstructionContractorWorkflowToolkit.estimate.enums.BidRoundingMode;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.enums.ConstructionType;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.enums.DepartmentCode;
 
@@ -27,4 +28,5 @@ public class CreateBidFromRevisionRequest {
     private DepartmentCode departmentCode;
     private ConstructionType constructionType;
     private UUID constructionObjectTypeId;
+    private BidRoundingMode roundingMode;
 }
