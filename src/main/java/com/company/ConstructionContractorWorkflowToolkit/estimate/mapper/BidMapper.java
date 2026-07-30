@@ -54,6 +54,7 @@ public class BidMapper {
                 response.setCreatedAtUtc(bid.getCreatedAtUtc());
                 response.setUpdatedAtUtc(bid.getUpdatedAtUtc());
                 response.setConstructionType(bid.getConstructionType());
+                response.setRoundingMode(bid.getRoundingMode());
                 if (bid.getConstructionObjectType() != null) {
                         response.setConstructionObjectTypeId(
                                         bid.getConstructionObjectType().getConstructionObjectTypeId());

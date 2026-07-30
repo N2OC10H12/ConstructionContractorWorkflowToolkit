@@ -1,5 +1,6 @@
 package com.company.ConstructionContractorWorkflowToolkit.company.dto;
 
+import com.company.ConstructionContractorWorkflowToolkit.estimate.enums.BidRoundingMode;
 import lombok.Builder;
 
 import java.time.LocalDateTime;
@@ -23,6 +24,7 @@ public record CompanyProfileResponse(
         String companyCountry,
 
         String introductionData,
+        BidRoundingMode defaultBidRoundingMode,
 
         String legalAddressLine1,
         String legalAddressLine2,

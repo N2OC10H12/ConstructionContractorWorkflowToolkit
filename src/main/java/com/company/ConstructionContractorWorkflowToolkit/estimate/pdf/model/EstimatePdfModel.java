@@ -2,6 +2,7 @@ package com.company.ConstructionContractorWorkflowToolkit.estimate.pdf.model;
 
 import com.company.ConstructionContractorWorkflowToolkit.estimate.enums.CustomerDisplayMode;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.enums.EstimatePriceDisplayMode;
+import com.company.ConstructionContractorWorkflowToolkit.estimate.enums.BidRoundingMode;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -21,6 +22,7 @@ public class EstimatePdfModel {
     private String jobNumber;
     private Integer revisionNumber;
     private String revisionDisplayName;
+    private BidRoundingMode roundingMode;
 
     private String estimateScope;
 
@@ -37,6 +39,7 @@ public class EstimatePdfModel {
     private EstimatePdfCustomerBlock customer;
     private EstimatePdfJobBlock job;
     private EstimatePdfTotals totals;
+    
 
     /*
      * Existing hierarchical representation retained during migration.

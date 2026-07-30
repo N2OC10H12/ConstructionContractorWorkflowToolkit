@@ -4,6 +4,7 @@ import com.company.ConstructionContractorWorkflowToolkit.company.dto.CompanyProf
 import com.company.ConstructionContractorWorkflowToolkit.company.dto.UpdateCompanyProfileRequest;
 import com.company.ConstructionContractorWorkflowToolkit.company.entity.CompanyProfile;
 import com.company.ConstructionContractorWorkflowToolkit.company.repository.CompanyProfileRepository;
+import com.company.ConstructionContractorWorkflowToolkit.estimate.enums.BidRoundingMode;
 import com.company.ConstructionContractorWorkflowToolkit.file.entity.StoredFile;
 import com.company.ConstructionContractorWorkflowToolkit.file.service.StoredFileService;
 import com.company.ConstructionContractorWorkflowToolkit.file.storage.StoredObjectContent;
@@ -85,7 +86,8 @@ public class CompanyProfileService {
             "primaryPhone",
             "email",
             "website",
-            "introductionData");
+            "introductionData",
+            "defaultBidRoundingMode");
 
     private final CompanyProfileRepository companyProfileRepository;
     private final StoredFileService storedFileService;
@@ -104,6 +106,16 @@ public class CompanyProfileService {
     @Transactional(readOnly = true)
     public CompanyProfileResponse getDefaultProfile() {
         return toResponse(getDefaultProfileEntity());
+    }
+
+    @Transactional(readOnly = true)
+    public BidRoundingMode getDefaultBidRoundingMode() {
+        BidRoundingMode roundingMode = getDefaultProfileEntity()
+                .getDefaultBidRoundingMode();
+
+        return roundingMode != null
+                ? roundingMode
+                : BidRoundingMode.WHOLE;
     }
 
     @Transactional
@@ -162,6 +174,10 @@ public class CompanyProfileService {
                 "introductionData",
                 profile::setIntroductionData,
                 1500);
+
+        applyDefaultBidRoundingMode(
+                request,
+                profile);
 
         profile.setSyncToken(profile.getSyncToken() + 1);
         profile.setUpdatedAtUtc(LocalDateTime.now());
@@ -366,6 +382,38 @@ public class CompanyProfileService {
         setter.accept(value);
     }
 
+    private void applyDefaultBidRoundingMode(
+            UpdateCompanyProfileRequest request,
+            CompanyProfile profile) {
+
+        String field = "defaultBidRoundingMode";
+
+        if (!request.containsKey(field)) {
+            return;
+        }
+
+        Object rawValue = request.get(field);
+
+        if (rawValue == null) {
+            throw badRequest(field + " cannot be null");
+        }
+
+        String value = normalizeString(rawValue);
+
+        if (value == null) {
+            throw badRequest(field + " cannot be blank");
+        }
+
+        try {
+            profile.setDefaultBidRoundingMode(
+                    BidRoundingMode.valueOf(
+                            value.toUpperCase(Locale.ROOT)));
+        } catch (IllegalArgumentException exception) {
+            throw badRequest(
+                    field + " must be WHOLE or FRACTIONAL");
+        }
+    }
+
     private String normalizeString(Object rawValue) {
         String value = String.valueOf(rawValue).trim();
         return value.isBlank() ? null : value;
@@ -444,6 +492,10 @@ public class CompanyProfileService {
                 .email(profile.getEmail())
                 .website(profile.getWebsite())
                 .introductionData(profile.getIntroductionData())
+                .defaultBidRoundingMode(
+                        profile.getDefaultBidRoundingMode() != null
+                                ? profile.getDefaultBidRoundingMode()
+                                : BidRoundingMode.WHOLE)
 
                 .logoFileId(responseLogoFileId)
                 .logoOriginalFilename(responseLogoOriginalFilename)
