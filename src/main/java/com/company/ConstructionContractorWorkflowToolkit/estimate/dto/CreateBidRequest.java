@@ -46,6 +46,9 @@ public class CreateBidRequest {
     @Size(max = 4000, message = "description must be <= 4000 characters")
     private String description;
 
+    @Size(max = 1000, message = "estimateScope must be <= 1000 characters")
+    private String estimateScope;
+
     @NotNull(message = "constructionType is required")
     private ConstructionType constructionType;
 

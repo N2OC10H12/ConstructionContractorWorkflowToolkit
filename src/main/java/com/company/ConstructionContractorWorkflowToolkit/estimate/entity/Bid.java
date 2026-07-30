@@ -55,6 +55,9 @@ public class Bid {
     @Column(name = "description")
     private String description;
 
+    @Column(name = "estimate_scope", length = 1000)
+    private String estimateScope;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "department_code", nullable = false, length = 10)
     private DepartmentCode departmentCode;

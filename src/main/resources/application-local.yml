@@ -37,7 +37,6 @@ app:
   jwt:
     secret: CHANGE_THIS_TO_LONG_RANDOM_SECRET_CHANGE_THIS_TO_LONG_RANDOM_SECRET
     expiration-minutes: 120
-
-pmworkflow:
   file-storage:
-    root-path: "C:/apps/pmworkflow/uploads"
+    provider: LOCAL
+    root-path: "C:/apps/ConstructionContractorWorkflowToolkit/uploads"

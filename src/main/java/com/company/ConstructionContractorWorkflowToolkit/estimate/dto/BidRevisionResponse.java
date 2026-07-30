@@ -23,7 +23,6 @@ public class BidRevisionResponse {
     private BigDecimal subtotalPrice;
     private BigDecimal taxAmount;
     private BigDecimal totalPrice;
-    private String customerNote;
     private CustomerDisplayMode customerDisplayMode;
     private EstimatePriceDisplayMode priceDisplayMode;
     private LocalDateTime sentAtUtc;

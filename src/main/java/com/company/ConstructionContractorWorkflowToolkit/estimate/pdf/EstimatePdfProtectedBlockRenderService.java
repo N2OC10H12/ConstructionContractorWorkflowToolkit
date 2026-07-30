@@ -8,9 +8,11 @@ import java.util.regex.Pattern;
 @Service
 public class EstimatePdfProtectedBlockRenderService {
 
-    private static final Pattern ESTIMATE_ITEMS_TABLE_BLOCK_PATTERN = Pattern.compile(
-            "(<([a-zA-Z][a-zA-Z0-9]*)\\b(?=[^>]*\\bdata-pdf-block\\s*=\\s*['\"]ESTIMATE_ITEMS_TABLE['\"])[^>]*>)(.*?)(</\\2>)",
-            Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    private static final Pattern ESTIMATE_ITEMS_TABLE_BLOCK_PATTERN = protectedBlockPattern("ESTIMATE_ITEMS_TABLE");
+
+    private static final Pattern COMPANY_INTRODUCTION_BLOCK_PATTERN = protectedBlockPattern("COMPANY_INTRODUCTION");
+
+    private static final Pattern BID_SCOPE_BLOCK_PATTERN = protectedBlockPattern("BID_SCOPE");
 
     private static final String PRINTABLE_ROWS_CONTENT = """
             {{#groupRow}}
@@ -116,6 +118,14 @@ public class EstimatePdfProtectedBlockRenderService {
                     {{/model.showHierarchyPriceColumn}}
                 </tr>
             {{/costRow}}
+            """;
+
+    private static final String COMPANY_INTRODUCTION_CONTENT = """
+            <div class="pdf-company-introduction-content">{{model.company.introductionData}}</div>
+            """;
+
+    private static final String BID_SCOPE_CONTENT = """
+            <div class="pdf-bid-scope-content">{{model.estimateScope}}</div>
             """;
 
     private static final String ESTIMATE_ITEMS_TABLE_CONTENT = """
@@ -237,16 +247,49 @@ public class EstimatePdfProtectedBlockRenderService {
             return htmlTemplate;
         }
 
-        Matcher matcher = ESTIMATE_ITEMS_TABLE_BLOCK_PATTERN.matcher(htmlTemplate);
+        String result = replaceProtectedBlock(
+                htmlTemplate,
+                COMPANY_INTRODUCTION_BLOCK_PATTERN,
+                COMPANY_INTRODUCTION_CONTENT);
 
+        result = replaceProtectedBlock(
+                result,
+                BID_SCOPE_BLOCK_PATTERN,
+                BID_SCOPE_CONTENT);
+
+        return replaceProtectedBlock(
+                result,
+                ESTIMATE_ITEMS_TABLE_BLOCK_PATTERN,
+                ESTIMATE_ITEMS_TABLE_CONTENT);
+    }
+
+    private static Pattern protectedBlockPattern(String blockKey) {
+        return Pattern.compile(
+                "(<([a-zA-Z][a-zA-Z0-9]*)\\b"
+                        + "(?=[^>]*\\bdata-pdf-block\\s*=\\s*['\"]"
+                        + Pattern.quote(blockKey)
+                        + "['\"])[^>]*>)"
+                        + "(.*?)"
+                        + "(</\\2>)",
+                Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    }
+
+    private String replaceProtectedBlock(
+            String htmlTemplate,
+            Pattern blockPattern,
+            String protectedContent) {
+
+        Matcher matcher = blockPattern.matcher(htmlTemplate);
         StringBuilder result = new StringBuilder();
 
         while (matcher.find()) {
             String replacement = matcher.group(1)
-                    + ESTIMATE_ITEMS_TABLE_CONTENT
+                    + protectedContent
                     + matcher.group(4);
 
-            matcher.appendReplacement(result, Matcher.quoteReplacement(replacement));
+            matcher.appendReplacement(
+                    result,
+                    Matcher.quoteReplacement(replacement));
         }
 
         matcher.appendTail(result);

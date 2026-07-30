@@ -41,6 +41,7 @@ public class BidMapper {
                 response.setJobPostalCode(bid.getJobPostalCode());
                 response.setJobCountry(bid.getJobCountry());
                 response.setDescription(bid.getDescription());
+                response.setEstimateScope(bid.getEstimateScope());
                 response.setDepartmentCode(bid.getDepartmentCode());
                 response.setBidStatus(bid.getBidStatus());
 
@@ -96,8 +97,6 @@ public class BidMapper {
                 response.setSubtotalPrice(bidRevision.getSubtotalPrice());
                 response.setTaxAmount(bidRevision.getTaxAmount());
                 response.setTotalPrice(bidRevision.getTotalPrice());
-
-                response.setCustomerNote(bidRevision.getCustomerNote());
 
                 response.setSentAtUtc(bidRevision.getSentAtUtc());
                 response.setAwardedAtUtc(bidRevision.getAwardedAtUtc());

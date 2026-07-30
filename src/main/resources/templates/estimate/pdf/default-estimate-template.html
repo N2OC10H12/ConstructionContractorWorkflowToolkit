@@ -51,6 +51,22 @@
         <div id="i4cuk">Job Address: <span id="iy6k1">{{model.job.addressLine1}}</span> {{model.job.city}} {{model.job.state}} {{model.job.postalCode}}</div>
     </section>
 
+    <section
+            data-pdf-block="COMPANY_INTRODUCTION"
+            class="pdf-company-introduction-block">
+        <div class="pdf-company-introduction-content">
+            {{model.company.introductionData}}
+        </div>
+    </section>
+
+    <section
+            data-pdf-block="BID_SCOPE"
+            class="pdf-bid-scope-block">
+        <div class="pdf-bid-scope-content">
+            {{model.estimateScope}}
+        </div>
+    </section>
+
     <section class="pdf-title-bottom-row">
         <section data-pdf-block="SIGNATURE" class="pdf-signature-block">
             <div class="pdf-signature-line"></div>

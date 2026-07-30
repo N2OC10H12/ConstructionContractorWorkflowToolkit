@@ -53,12 +53,6 @@ public class BidRevision {
     @Column(name = "total_price", nullable = false, precision = 19, scale = 4)
     private BigDecimal totalPrice;
 
-    @Column(name = "customer_note")
-    private String customerNote;
-
-    @Column(name = "internal_note")
-    private String internalNote;
-
     @Column(name = "sent_at_utc")
     private LocalDateTime sentAtUtc;
 
