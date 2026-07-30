@@ -34,6 +34,14 @@ public class EstimatePdfTemplateValidationService {
             "data-pdf-block\\s*=\\s*['\"]ESTIMATE_ITEMS_TABLE['\"]",
             Pattern.CASE_INSENSITIVE);
 
+    private static final Pattern COMPANY_INTRODUCTION_BLOCK_PATTERN = Pattern.compile(
+            "data-pdf-block\\s*=\\s*['\"]COMPANY_INTRODUCTION['\"]",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern BID_SCOPE_BLOCK_PATTERN = Pattern.compile(
+            "data-pdf-block\\s*=\\s*['\"]BID_SCOPE['\"]",
+            Pattern.CASE_INSENSITIVE);
+
     private final ObjectMapper objectMapper;
 
     public EstimatePdfTemplateValidationService(ObjectMapper objectMapper) {
@@ -139,9 +147,20 @@ public class EstimatePdfTemplateValidationService {
             return;
         }
 
-        if (!ESTIMATE_ITEMS_TABLE_BLOCK_PATTERN.matcher(htmlTemplate).find()) {
-            throw new BadRequestException("HTML template must contain protected block: ESTIMATE_ITEMS_TABLE");
-        }
+        requireProtectedBlock(
+                htmlTemplate,
+                ESTIMATE_ITEMS_TABLE_BLOCK_PATTERN,
+                "ESTIMATE_ITEMS_TABLE");
+
+        requireProtectedBlock(
+                htmlTemplate,
+                COMPANY_INTRODUCTION_BLOCK_PATTERN,
+                "COMPANY_INTRODUCTION");
+
+        requireProtectedBlock(
+                htmlTemplate,
+                BID_SCOPE_BLOCK_PATTERN,
+                "BID_SCOPE");
     }
 
     private void rejectDangerousHtml(String htmlTemplate) {
@@ -168,5 +187,16 @@ public class EstimatePdfTemplateValidationService {
 
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private void requireProtectedBlock(
+            String htmlTemplate,
+            Pattern pattern,
+            String blockKey) {
+
+        if (!pattern.matcher(htmlTemplate).find()) {
+            throw new BadRequestException(
+                    "HTML template must contain protected block: " + blockKey);
+        }
     }
 }

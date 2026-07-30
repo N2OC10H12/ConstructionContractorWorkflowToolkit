@@ -20,4 +20,6 @@ public class EstimatePdfCompanyBlock {
     private String phone;
     private String email;
     private String website;
+
+    private String introductionData;
 }

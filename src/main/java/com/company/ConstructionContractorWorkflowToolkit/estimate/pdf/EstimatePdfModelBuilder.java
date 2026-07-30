@@ -90,6 +90,7 @@ public class EstimatePdfModelBuilder {
         model.setJobNumber(bid.getJobNumber());
         model.setRevisionNumber(revision.getRevisionNumber());
         model.setRevisionDisplayName(revision.getRevisionDisplayName());
+        model.setEstimateScope(bid.getEstimateScope());
         model.setCreatedAtUtc(revision.getCreatedAtUtc());
         model.setRevisionUpdatedAtUtc(revision.getUpdatedAtUtc());
 
@@ -136,6 +137,7 @@ public class EstimatePdfModelBuilder {
         block.setPhone(profile.primaryPhone());
         block.setEmail(profile.email());
         block.setWebsite(profile.website());
+        block.setIntroductionData(profile.introductionData());
 
         applyBestPdfAddress(profile, block);
 
