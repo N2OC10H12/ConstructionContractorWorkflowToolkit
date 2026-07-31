@@ -1,6 +1,7 @@
 package com.company.ConstructionContractorWorkflowToolkit.estimate.entity;
 
 import com.company.ConstructionContractorWorkflowToolkit.businesspartner.entity.BusinessPartner;
+import com.company.ConstructionContractorWorkflowToolkit.estimate.enums.BidRoundingMode;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.enums.BidStatus;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.enums.ConstructionType;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.enums.DepartmentCode;
@@ -105,5 +106,9 @@ public class Bid {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "construction_object_type_id")
     private ConstructionObjectType constructionObjectType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "rounding_mode", nullable = false, length = 20)
+    private BidRoundingMode roundingMode;
 
 }

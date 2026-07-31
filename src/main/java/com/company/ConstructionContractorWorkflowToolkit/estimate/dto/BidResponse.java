@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import com.company.ConstructionContractorWorkflowToolkit.estimate.enums.BidRoundingMode;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.enums.BidStatus;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.enums.ConstructionType;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.enums.DepartmentCode;
@@ -42,4 +43,5 @@ public class BidResponse {
     private String defaultTaxRateCode;
     private String defaultTaxRateName;
     private BigDecimal defaultTaxRatePercent;
+    private BidRoundingMode roundingMode;
 }

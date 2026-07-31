@@ -5,19 +5,23 @@
     "columns": {
       "description": {
         "visible": true,
-        "widthPercent": 60
+        "widthPercent": 35
       },
       "quantity": {
         "visible": true,
-        "widthPercent": 9
+        "widthPercent": 7
       },
       "unit": {
         "visible": true,
-        "widthPercent": 9
+        "widthPercent": 8
+      },
+      "customerNote": {
+        "visible": true,
+        "widthPercent": 35
       },
       "price": {
         "visible": true,
-        "widthPercent": 22
+        "widthPercent": 15
       }
     }
   }

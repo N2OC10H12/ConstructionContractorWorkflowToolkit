@@ -7,6 +7,7 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import com.company.ConstructionContractorWorkflowToolkit.estimate.enums.BidRoundingMode;
 import com.company.ConstructionContractorWorkflowToolkit.file.entity.StoredFile;
 
 @Getter
@@ -122,6 +123,10 @@ public class CompanyProfile {
     @Column(name = "introduction_data", length = 1500)
     private String introductionData;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "default_bid_rounding_mode", nullable = false, length = 20)
+    private BidRoundingMode defaultBidRoundingMode;
+
     @PrePersist
     void prePersist() {
         if (companyProfileId == null) {
@@ -135,6 +140,9 @@ public class CompanyProfile {
         }
         if (isDeleted == null) {
             isDeleted = false;
+        }
+        if (defaultBidRoundingMode == null) {
+            defaultBidRoundingMode = BidRoundingMode.WHOLE;
         }
         LocalDateTime now = LocalDateTime.now();
         if (createdAtUtc == null) {

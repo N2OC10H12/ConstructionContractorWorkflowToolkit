@@ -8,18 +8,22 @@ import java.util.regex.Pattern;
 @Service
 public class EstimatePdfProtectedBlockRenderService {
 
-    private static final Pattern ESTIMATE_ITEMS_TABLE_BLOCK_PATTERN = protectedBlockPattern("ESTIMATE_ITEMS_TABLE");
+    private static final Pattern ESTIMATE_ITEMS_TABLE_BLOCK_PATTERN =
+            protectedBlockPattern("ESTIMATE_ITEMS_TABLE");
 
-    private static final Pattern COMPANY_INTRODUCTION_BLOCK_PATTERN = protectedBlockPattern("COMPANY_INTRODUCTION");
+    private static final Pattern COMPANY_INTRODUCTION_BLOCK_PATTERN =
+            protectedBlockPattern("COMPANY_INTRODUCTION");
 
-    private static final Pattern BID_SCOPE_BLOCK_PATTERN = protectedBlockPattern("BID_SCOPE");
+    private static final Pattern BID_SCOPE_BLOCK_PATTERN =
+            protectedBlockPattern("BID_SCOPE");
 
     private static final String PRINTABLE_ROWS_CONTENT = """
             {{#groupRow}}
                 <tr class="pdf-group-row{{#continuationContext}} pdf-continuation-context-row{{/continuationContext}}">
-                    <td class="pdf-items-description-cell" colspan="3">
+                    <td class="pdf-items-description-cell" colspan="4">
                         {{group.groupName}}{{#continuationContext}} — continued{{/continuationContext}}
                     </td>
+
                     {{#model.showHierarchyPriceColumn}}
                         <td class="pdf-items-price-cell">
                             {{^continuationContext}}
@@ -34,9 +38,10 @@ public class EstimatePdfProtectedBlockRenderService {
 
             {{#workTypeRow}}
                 <tr class="pdf-item-type-row{{#continuationContext}} pdf-continuation-context-row{{/continuationContext}}">
-                    <td class="pdf-items-description-cell" colspan="3">
+                    <td class="pdf-items-description-cell" colspan="4">
                         {{workType.workTypeName}}{{#continuationContext}} — continued{{/continuationContext}}
                     </td>
+
                     {{#model.showHierarchyPriceColumn}}
                         <td class="pdf-items-price-cell">
                             {{^continuationContext}}
@@ -55,12 +60,6 @@ public class EstimatePdfProtectedBlockRenderService {
                         <div class="pdf-item-name">
                             {{item.description}}{{#continuationContext}} — continued{{/continuationContext}}
                         </div>
-
-                        {{^continuationContext}}
-                            {{#item.customerNote}}
-                                <div class="pdf-item-notes">{{item.customerNote}}</div>
-                            {{/item.customerNote}}
-                        {{/continuationContext}}
                     </td>
 
                     <td class="pdf-items-qty-cell">
@@ -72,6 +71,16 @@ public class EstimatePdfProtectedBlockRenderService {
                     <td class="pdf-items-unit-cell">
                         {{^continuationContext}}
                             {{item.unitOfMeasure}}
+                        {{/continuationContext}}
+                    </td>
+
+                    <td class="pdf-items-customer-note-cell">
+                        {{^continuationContext}}
+                            {{#item.customerNote}}
+                                <div class="pdf-item-notes">
+                                    {{item.customerNote}}
+                                </div>
+                            {{/item.customerNote}}
                         {{/continuationContext}}
                     </td>
 
@@ -90,15 +99,15 @@ public class EstimatePdfProtectedBlockRenderService {
             {{#costRow}}
                 <tr class="pdf-cost-row">
                     <td class="pdf-items-description-cell pdf-cost-description-cell">
-                        <div class="pdf-cost-element">{{cost.costElementName}}</div>
+                        <div class="pdf-cost-element">
+                            {{cost.costElementName}}
+                        </div>
 
                         {{#cost.costRateName}}
-                            <div class="pdf-cost-rate">{{cost.costRateName}}</div>
+                            <div class="pdf-cost-rate">
+                                {{cost.costRateName}}
+                            </div>
                         {{/cost.costRateName}}
-
-                        {{#cost.customerNote}}
-                            <div class="pdf-cost-notes">{{cost.customerNote}}</div>
-                        {{/cost.customerNote}}
                     </td>
 
                     <td class="pdf-items-qty-cell">
@@ -107,6 +116,14 @@ public class EstimatePdfProtectedBlockRenderService {
 
                     <td class="pdf-items-unit-cell">
                         {{cost.unitOfMeasure}}
+                    </td>
+
+                    <td class="pdf-items-customer-note-cell">
+                        {{#cost.customerNote}}
+                            <div class="pdf-cost-notes">
+                                {{cost.customerNote}}
+                            </div>
+                        {{/cost.customerNote}}
                     </td>
 
                     {{#model.showHierarchyPriceColumn}}
@@ -135,6 +152,8 @@ public class EstimatePdfProtectedBlockRenderService {
                         <col class="pdf-items-description-col">
                         <col class="pdf-items-qty-col">
                         <col class="pdf-items-unit-col">
+                        <col class="pdf-items-customer-note-col">
+
                         {{#model.showHierarchyPriceColumn}}
                             <col class="pdf-items-price-col">
                         {{/model.showHierarchyPriceColumn}}
@@ -145,12 +164,19 @@ public class EstimatePdfProtectedBlockRenderService {
                         <th class="pdf-items-description-cell pdf-items-description-header-cell">
                             Description
                         </th>
+
                         <th class="pdf-items-qty-cell pdf-items-qty-header-cell">
                             Qty
                         </th>
+
                         <th class="pdf-items-unit-cell pdf-items-unit-header-cell">
-                            Unit
+                            UOM
                         </th>
+
+                        <th class="pdf-items-customer-note-cell pdf-items-customer-note-header-cell">
+                            Customer Note
+                        </th>
+
                         {{#model.showHierarchyPriceColumn}}
                             <th class="pdf-items-price-cell pdf-items-price-header-cell">
                                 Price
@@ -174,6 +200,8 @@ public class EstimatePdfProtectedBlockRenderService {
                             <col class="pdf-items-description-col">
                             <col class="pdf-items-qty-col">
                             <col class="pdf-items-unit-col">
+                            <col class="pdf-items-customer-note-col">
+
                             {{#model.showHierarchyPriceColumn}}
                                 <col class="pdf-items-price-col">
                             {{/model.showHierarchyPriceColumn}}
@@ -184,12 +212,19 @@ public class EstimatePdfProtectedBlockRenderService {
                             <th class="pdf-items-description-cell pdf-items-description-header-cell">
                                 Description
                             </th>
+
                             <th class="pdf-items-qty-cell pdf-items-qty-header-cell">
                                 Qty
                             </th>
+
                             <th class="pdf-items-unit-cell pdf-items-unit-header-cell">
-                                Unit
+                                UOM
                             </th>
+
+                            <th class="pdf-items-customer-note-cell pdf-items-customer-note-header-cell">
+                                Customer Note
+                            </th>
+
                             {{#model.showHierarchyPriceColumn}}
                                 <th class="pdf-items-price-cell pdf-items-price-header-cell">
                                     Price
@@ -210,10 +245,12 @@ public class EstimatePdfProtectedBlockRenderService {
                             Subtotal:
                             {{#money}}{{model.totals.customerFacingSubtotalPrice}}{{/money}}
                         </div>
+
                         <div>
                             Tax:
                             {{#money}}{{model.totals.taxAmount}}{{/money}}
                         </div>
+
                         <div>
                             Total:
                             {{#money}}{{model.totals.totalPrice}}{{/money}}
@@ -228,10 +265,12 @@ public class EstimatePdfProtectedBlockRenderService {
                         Subtotal:
                         {{#money}}{{model.totals.customerFacingSubtotalPrice}}{{/money}}
                     </div>
+
                     <div>
                         Tax:
                         {{#money}}{{model.totals.taxAmount}}{{/money}}
                     </div>
+
                     <div>
                         Total:
                         {{#money}}{{model.totals.totalPrice}}{{/money}}

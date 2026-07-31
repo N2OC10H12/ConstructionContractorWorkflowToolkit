@@ -3,6 +3,7 @@ package com.company.ConstructionContractorWorkflowToolkit.estimate.service;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.entity.BidRevision;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.entity.BidRevisionItem;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.entity.BidRevisionItemCost;
+import com.company.ConstructionContractorWorkflowToolkit.estimate.enums.BidRoundingMode;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.enums.EstimateTaxModel;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.repository.BidRevisionItemCostRepository;
 import com.company.ConstructionContractorWorkflowToolkit.estimate.repository.BidRevisionItemRepository;
@@ -21,14 +22,17 @@ public class PricingService {
     private final BidRevisionItemCostRepository bidRevisionItemCostRepository;
     private final BidRevisionItemRepository bidRevisionItemRepository;
     private final EstimateTaxModelResolver estimateTaxModelResolver;
+    private final EstimateRoundingPolicy estimateRoundingPolicy;
 
     public PricingService(
             BidRevisionItemCostRepository bidRevisionItemCostRepository,
             BidRevisionItemRepository bidRevisionItemRepository,
-            EstimateTaxModelResolver estimateTaxModelResolver) {
+            EstimateTaxModelResolver estimateTaxModelResolver,
+            EstimateRoundingPolicy estimateRoundingPolicy) {
         this.bidRevisionItemCostRepository = bidRevisionItemCostRepository;
         this.bidRevisionItemRepository = bidRevisionItemRepository;
         this.estimateTaxModelResolver = estimateTaxModelResolver;
+        this.estimateRoundingPolicy = estimateRoundingPolicy;
     }
 
     public record EstimateTaxCalculationContext(
@@ -72,15 +76,39 @@ public class PricingService {
             BidRevisionItemCost cost,
             EstimateTaxCalculationContext taxContext) {
 
-        BigDecimal quantity = nvl(cost.getQuantity());
-        BigDecimal unitCost = nvl(cost.getUnitCost());
+        BidRoundingMode roundingMode =
+                resolveRoundingMode(cost);
+
+        BigDecimal quantity = normalizeInput(
+                cost.getQuantity(),
+                roundingMode);
+
+        BigDecimal unitCost = normalizeInput(
+                cost.getUnitCost(),
+                roundingMode);
+
+        cost.setQuantity(quantity);
+        cost.setUnitCost(unitCost);
+
+        if (cost.getRateSnapshot() != null) {
+            cost.setRateSnapshot(
+                    normalizeInput(
+                            cost.getRateSnapshot(),
+                            roundingMode));
+        }
 
         BigDecimal markupPercent = cost.getMarkupPercent();
 
         if (markupPercent == null && cost.getUnitPrice() != null) {
+            BigDecimal enteredUnitPrice = normalizeInput(
+                    cost.getUnitPrice(),
+                    roundingMode);
+
+            cost.setUnitPrice(enteredUnitPrice);
+
             markupPercent = deriveMarkupPercent(
                     unitCost,
-                    cost.getUnitPrice());
+                    enteredUnitPrice);
 
             cost.setMarkupPercent(markupPercent);
         }
@@ -90,27 +118,41 @@ public class PricingService {
             cost.setMarkupPercent(markupPercent);
         }
 
-        BigDecimal unitPrice = calculateUnitPrice(
-                unitCost,
-                markupPercent);
+        BigDecimal unitPrice = calculatedValue(
+                calculateUnitPrice(
+                        unitCost,
+                        markupPercent),
+                roundingMode);
 
-        BigDecimal totalCost = quantity.multiply(unitCost);
-        BigDecimal totalPrice = quantity.multiply(unitPrice);
+        BigDecimal totalCost = calculatedValue(
+                quantity.multiply(unitCost),
+                roundingMode);
+
+        BigDecimal totalPrice = calculatedValue(
+                quantity.multiply(unitPrice),
+                roundingMode);
 
         BigDecimal taxAmount = calculateCostTax(
                 cost,
                 totalPrice,
-                taxContext);
+                taxContext,
+                roundingMode);
 
-        cost.setUnitPrice(money(unitPrice));
-        cost.setTotalCost(money(totalCost));
-        cost.setTotalPrice(money(totalPrice));
+        cost.setUnitPrice(unitPrice);
+        cost.setTotalCost(totalCost);
+        cost.setTotalPrice(totalPrice);
         cost.setGpmPercent(
                 deriveGpmPercent(totalCost, totalPrice));
 
-        cost.setTaxAmount(money(taxAmount));
+        cost.setTaxAmount(
+                calculatedValue(
+                        taxAmount,
+                        roundingMode));
+
         cost.setPriceWithTax(
-                money(totalPrice.add(taxAmount)));
+                calculatedValue(
+                        totalPrice.add(taxAmount),
+                        roundingMode));
     }
 
     /**
@@ -128,6 +170,9 @@ public class PricingService {
      * Item taxAmount and priceWithTax are aggregate values.
      */
     public void recalculateItemAggregateTotals(BidRevisionItem item) {
+
+        BidRoundingMode roundingMode =
+                resolveRoundingMode(item);
 
         List<BidRevisionItemCost> costs =
                 findActiveItemCosts(item);
@@ -154,10 +199,14 @@ public class PricingService {
                 nvl(item.getTotalPrice());
 
         BigDecimal aggregateTotalCost =
-                materialTotalCost.add(costRowsTotalCost);
+                calculatedValue(
+                        materialTotalCost.add(costRowsTotalCost),
+                        roundingMode);
 
         BigDecimal aggregateTotalPrice =
-                materialTotalPrice.add(costRowsTotalPrice);
+                calculatedValue(
+                        materialTotalPrice.add(costRowsTotalPrice),
+                        roundingMode);
 
         EstimateTaxCalculationContext taxContext =
                 createTaxCalculationContext(item);
@@ -166,21 +215,25 @@ public class PricingService {
                 item,
                 materialTotalCost,
                 materialTotalPrice,
-                taxContext);
+                taxContext,
+                roundingMode);
 
         BigDecimal aggregateTaxAmount =
-                materialTaxAmount.add(costRowsTaxAmount);
+                calculatedValue(
+                        materialTaxAmount.add(costRowsTaxAmount),
+                        roundingMode);
 
         item.setGpmPercent(
                 deriveGpmPercent(
                         aggregateTotalCost,
                         aggregateTotalPrice));
 
-        item.setTaxAmount(
-                money(aggregateTaxAmount));
+        item.setTaxAmount(aggregateTaxAmount);
 
         item.setPriceWithTax(
-                money(aggregateTotalPrice.add(aggregateTaxAmount)));
+                calculatedValue(
+                        aggregateTotalPrice.add(aggregateTaxAmount),
+                        roundingMode));
     }
 
     /**
@@ -188,6 +241,9 @@ public class PricingService {
      * revision totals.
      */
     public void recalculateRevisionTotals(BidRevision revision) {
+
+        BidRoundingMode roundingMode =
+                resolveRoundingMode(revision);
 
         List<BidRevisionItem> items =
                 bidRevisionItemRepository
@@ -225,10 +281,25 @@ public class PricingService {
                     nvl(item.getPriceWithTax()));
         }
 
-        revision.setSubtotalCost(money(subtotalCost));
-        revision.setSubtotalPrice(money(subtotalPrice));
-        revision.setTaxAmount(money(taxAmount));
-        revision.setTotalPrice(money(totalPrice));
+        revision.setSubtotalCost(
+                calculatedValue(
+                        subtotalCost,
+                        roundingMode));
+
+        revision.setSubtotalPrice(
+                calculatedValue(
+                        subtotalPrice,
+                        roundingMode));
+
+        revision.setTaxAmount(
+                calculatedValue(
+                        taxAmount,
+                        roundingMode));
+
+        revision.setTotalPrice(
+                calculatedValue(
+                        totalPrice,
+                        roundingMode));
     }
 
     /**
@@ -236,15 +307,32 @@ public class PricingService {
      */
     public void recalculateItemMaterialTotals(BidRevisionItem item) {
 
-        BigDecimal quantity = nvl(item.getQuantity());
-        BigDecimal unitCost = nvl(item.getUnitCost());
+        BidRoundingMode roundingMode =
+                resolveRoundingMode(item);
+
+        BigDecimal quantity = normalizeInput(
+                item.getQuantity(),
+                roundingMode);
+
+        BigDecimal unitCost = normalizeInput(
+                item.getUnitCost(),
+                roundingMode);
+
+        item.setQuantity(quantity);
+        item.setUnitCost(unitCost);
 
         BigDecimal markupPercent = item.getMarkupPercent();
 
         if (markupPercent == null && item.getUnitPrice() != null) {
+            BigDecimal enteredUnitPrice = normalizeInput(
+                    item.getUnitPrice(),
+                    roundingMode);
+
+            item.setUnitPrice(enteredUnitPrice);
+
             markupPercent = deriveMarkupPercent(
                     unitCost,
-                    item.getUnitPrice());
+                    enteredUnitPrice);
 
             item.setMarkupPercent(markupPercent);
         }
@@ -254,26 +342,33 @@ public class PricingService {
             item.setMarkupPercent(markupPercent);
         }
 
-        BigDecimal unitPrice = calculateUnitPrice(
-                unitCost,
-                markupPercent);
+        BigDecimal unitPrice = calculatedValue(
+                calculateUnitPrice(
+                        unitCost,
+                        markupPercent),
+                roundingMode);
 
         BigDecimal totalCost =
-                quantity.multiply(unitCost);
+                calculatedValue(
+                        quantity.multiply(unitCost),
+                        roundingMode);
 
         BigDecimal totalPrice =
-                quantity.multiply(unitPrice);
+                calculatedValue(
+                        quantity.multiply(unitPrice),
+                        roundingMode);
 
-        item.setUnitPrice(money(unitPrice));
-        item.setTotalCost(money(totalCost));
-        item.setTotalPrice(money(totalPrice));
+        item.setUnitPrice(unitPrice);
+        item.setTotalCost(totalCost);
+        item.setTotalPrice(totalPrice);
     }
 
     private BigDecimal calculateItemMaterialTax(
             BidRevisionItem item,
             BigDecimal materialTotalCost,
             BigDecimal materialTotalPrice,
-            EstimateTaxCalculationContext taxContext) {
+            EstimateTaxCalculationContext taxContext,
+            BidRoundingMode roundingMode) {
 
         if (!Boolean.TRUE.equals(item.getIsTaxable())) {
             return BigDecimal.ZERO;
@@ -286,13 +381,15 @@ public class PricingService {
 
         return calculateTax(
                 taxBase,
-                taxContext.taxRatePercent());
+                taxContext.taxRatePercent(),
+                roundingMode);
     }
 
     private BigDecimal calculateCostTax(
             BidRevisionItemCost cost,
             BigDecimal totalPrice,
-            EstimateTaxCalculationContext taxContext) {
+            EstimateTaxCalculationContext taxContext,
+            BidRoundingMode roundingMode) {
 
         if (!Boolean.TRUE.equals(cost.getIsTaxable())) {
             return BigDecimal.ZERO;
@@ -302,20 +399,23 @@ public class PricingService {
             case MATERIAL_COST_ONLY -> BigDecimal.ZERO;
             case ALL_SELL_PRICE -> calculateTax(
                     totalPrice,
-                    taxContext.taxRatePercent());
+                    taxContext.taxRatePercent(),
+                    roundingMode);
         };
     }
 
     private BigDecimal calculateTax(
             BigDecimal taxBase,
-            BigDecimal taxRatePercent) {
+            BigDecimal taxRatePercent,
+            BidRoundingMode roundingMode) {
 
-        return nvl(taxBase)
+        BigDecimal rawTax = nvl(taxBase)
                 .multiply(nvl(taxRatePercent))
-                .divide(
-                        ONE_HUNDRED,
-                        SCALE,
-                        RoundingMode.HALF_UP);
+                .movePointLeft(2);
+
+        return calculatedValue(
+                rawTax,
+                roundingMode);
     }
 
     private List<BidRevisionItemCost> findActiveItemCosts(
@@ -379,11 +479,60 @@ public class PricingService {
                         RoundingMode.HALF_UP);
     }
 
-    private BigDecimal money(BigDecimal value) {
-        return nvl(value)
-                .setScale(
-                        SCALE,
-                        RoundingMode.HALF_UP);
+    private BigDecimal normalizeInput(
+            BigDecimal value,
+            BidRoundingMode roundingMode) {
+
+        return nvl(
+                estimateRoundingPolicy.normalizeInput(
+                        nvl(value),
+                        roundingMode));
+    }
+
+    private BigDecimal calculatedValue(
+            BigDecimal value,
+            BidRoundingMode roundingMode) {
+
+        return estimateRoundingPolicy.roundCalculated(
+                value,
+                roundingMode);
+    }
+
+    private BidRoundingMode resolveRoundingMode(
+            BidRevisionItemCost cost) {
+
+        if (cost == null
+                || cost.getBidRevisionItem() == null) {
+            return BidRoundingMode.WHOLE;
+        }
+
+        return resolveRoundingMode(
+                cost.getBidRevisionItem());
+    }
+
+    private BidRoundingMode resolveRoundingMode(
+            BidRevisionItem item) {
+
+        if (item == null
+                || item.getBidRevision() == null) {
+            return BidRoundingMode.WHOLE;
+        }
+
+        return resolveRoundingMode(
+                item.getBidRevision());
+    }
+
+    private BidRoundingMode resolveRoundingMode(
+            BidRevision revision) {
+
+        if (revision == null
+                || revision.getBid() == null
+                || revision.getBid().getRoundingMode() == null) {
+            return BidRoundingMode.WHOLE;
+        }
+
+        return revision.getBid()
+                .getRoundingMode();
     }
 
     private static BigDecimal nvl(BigDecimal value) {

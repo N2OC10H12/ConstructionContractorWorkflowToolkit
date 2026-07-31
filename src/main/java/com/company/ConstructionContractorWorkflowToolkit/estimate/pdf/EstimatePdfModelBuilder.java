@@ -90,6 +90,7 @@ public class EstimatePdfModelBuilder {
         model.setJobNumber(bid.getJobNumber());
         model.setRevisionNumber(revision.getRevisionNumber());
         model.setRevisionDisplayName(revision.getRevisionDisplayName());
+        model.setRoundingMode(bid.getRoundingMode());
         model.setEstimateScope(bid.getEstimateScope());
         model.setCreatedAtUtc(revision.getCreatedAtUtc());
         model.setRevisionUpdatedAtUtc(revision.getUpdatedAtUtc());
