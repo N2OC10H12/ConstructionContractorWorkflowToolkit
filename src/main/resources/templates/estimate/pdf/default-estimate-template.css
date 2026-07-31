@@ -218,6 +218,7 @@ body {
 
 
 /* Protected Items table */
+/* Protected Items table */
 .pdf-items-table {
   width: 100%;
   margin-top: 12px;
@@ -227,19 +228,23 @@ body {
 }
 
 .pdf-items-description-col {
-  width: 60%;
+  width: 35%;
 }
 
 .pdf-items-qty-col {
-  width: 9%;
+  width: 7%;
 }
 
 .pdf-items-unit-col {
-  width: 9%;
+  width: 8%;
+}
+
+.pdf-items-customer-note-col {
+  width: 35%;
 }
 
 .pdf-items-price-col {
-  width: 22%;
+  width: 15%;
 }
 
 .pdf-items-table th,
@@ -250,17 +255,44 @@ body {
 .pdf-items-header-row th {
   padding: 7px 6px;
   border-bottom: 2px solid rgb(34, 34, 34);
-  text-align: left;
   font-weight: bold;
+}
+
+.pdf-items-header-row .pdf-items-description-header-cell {
+  text-align: left;
+}
+
+.pdf-items-header-row .pdf-items-qty-header-cell {
+  text-align: center;
+}
+
+.pdf-items-header-row .pdf-items-unit-header-cell {
+  text-align: center;
+}
+
+.pdf-items-header-row .pdf-items-customer-note-header-cell {
+  text-align: center;
+}
+
+.pdf-items-header-row .pdf-items-price-header-cell {
+  text-align: right;
 }
 
 .pdf-items-description-cell,
 .pdf-items-qty-cell,
 .pdf-items-unit-cell,
+.pdf-items-customer-note-cell,
 .pdf-items-price-cell {
   padding: 7px 6px;
   border-bottom: 1px solid rgb(221, 221, 221);
   vertical-align: top;
+}
+
+.pdf-items-description-cell,
+.pdf-items-customer-note-cell {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-align: left;
 }
 
 .pdf-items-qty-cell,
@@ -272,8 +304,13 @@ body {
 .pdf-items-description-header-cell,
 .pdf-items-qty-header-cell,
 .pdf-items-unit-header-cell,
+.pdf-items-customer-note-header-cell,
 .pdf-items-price-header-cell {
   font-weight: bold;
+}
+
+.pdf-items-customer-note-header-cell {
+  text-align: left;
 }
 
 .pdf-group-row td {
@@ -297,9 +334,11 @@ body {
 
 .pdf-item-notes,
 .pdf-cost-notes {
-  margin-top: 3px;
+  margin: 0;
   font-size: inherit;
   color: rgb(102, 102, 102);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .pdf-cost-rate {
